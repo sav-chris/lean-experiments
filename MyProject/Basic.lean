@@ -223,9 +223,31 @@ lemma diff_distr (x : ℝ) : deriv ( fun y ↦ 3 * y ^ 2 + 2 * y ) x = deriv ( f
 
 -/
 
+/-
+lemma poly_diff_example (x : ℝ) : deriv (f + g) x = 6 * x + 2 := by
+  have h1 : DifferentiableAt ℝ f x := by
+    apply DifferentiableAt.const_mul
+    exact DifferentiableAt.pow differentiableAt_id 2
+
+  have h2 : DifferentiableAt ℝ g x := by
+    apply DifferentiableAt.const_mul
+    exact differentiableAt_id
+
+  rw [deriv_add h1 h2]
+  unfold f g
+  rw [deriv_const_mul, deriv_const_mul]
+  rw [deriv_pow 2]
+  trace_state
+  simp?
+  trace_state
+  ring
+  trace_state
+-/
 
 
-
+lemma h2 (x : ℝ) : DifferentiableAt ℝ (g) x := by
+    apply DifferentiableAt.const_mul
+    exact differentiableAt_id
 
 
 lemma poly_diff_example (x : ℝ) : deriv (f + g) x = 6 * x + 2 := by
@@ -235,19 +257,18 @@ lemma poly_diff_example (x : ℝ) : deriv (f + g) x = 6 * x + 2 := by
   have h2 : DifferentiableAt ℝ (g) x := by
     apply DifferentiableAt.const_mul
     exact differentiableAt_id
+
+  have h_sq : DifferentiableAt ℝ (fun x ↦ x ^ 2) x := by
+    exact DifferentiableAt.pow differentiableAt_id 2
   rw [deriv_add h1 h2]
-  trace_state
   unfold f g
-  trace_state
   rw [ deriv_const_mul 3 ]
-  trace_state
-  rw [deriv_pow 2]
-  trace_state
+  rw [deriv_pow 2 ]
   ring
-  trace_state
   simp only [differentiableAt_fun_id, differentiableAt_const, deriv_fun_mul, deriv_id'', one_mul, deriv_const', mul_zero, add_zero]
   trace_state
-  sorry
+  ring_nf
+  trace_state
 
 
 /-
