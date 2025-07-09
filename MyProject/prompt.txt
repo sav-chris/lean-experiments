@@ -1,0 +1,94 @@
+I am trying to write a proof in lean. I want to prove that a quadratic has a minimum value in the reals when a > 0
+I have chosen to use the form of the quadratic equation as f(x) = a(x - k)2 + bx +c
+ie I want to prove
+∃ x₀, ∀ x, f(x₀) <= f(x) when a>0
+Let us test the value x₀ = k
+is the statement still true?
+∀ x, f(k) <= f(x) when a>0
+a(k - k)^2 + c <= a(x-k)^2 + c
+c <= a(x-k)^2 + c
+0 <= a(x-k)^2
+∀ x, k in ℝ, (x-k)^2 >= 0
+also we know a > 0 from our initial assumption
+so when a is multiplied by (x-k)^2 the result will always be nonnegative. therefore the statement 0 <= a(x-k)^2 is true ∀ x, k in ℝ and a > 0
+Have I missed any steps?
+Can you help me translate that to lean?
+This is my attempt at the lean program which needs to be finished
+import Mathlib.Analysis.Calculus.Deriv.Basic import Mathlib.Data.Real.Basic import Mathlib.Tactic
+open Real
+def quadratic (a k c x : ℝ) : ℝ := a * (x - k) ^ 2 + c
+theorem quadratic_has_minimum (a k c : ℝ) (ha : 0 < a) : ∃ x₀, ∀ x, a * (x - k) ^ 2 + c ≥ a * (x₀ - k)^ 2 + c := by sorry
+
+-----------------------------------
+
+
+I am designing an image background subtraction algorithm 
+Images are a 2 dimensional grid of real numbers. I represent them with functions of two variables x and y
+
+I, B, S: ℕ x ℕ -> ℝ
+
+The given image: I(x,y) 
+The known Background image: B(x,y)
+The desired signal to be computed: S(x,y)
+
+I want to perform this signal separation:
+
+S(x,y) = I(x,y) - pB(x,y)
+
+where p is some real number I have to find a way to chose optimally
+
+
+I have decided to chose p such that it minimises the resultant 'edginess' of the resultant signal S(x,y)
+
+ie choose p to minimise R(p):
+
+R(p) = sum(||grad(S(x,y))||^2)
+
+I next substitute in the definition of S(x,y)
+
+R(p) = sum(||grad(I(x,y) - pB(x,y))||^2)
+
+expanding:
+
+R = sum(grad(I(x,y)) .grad(I(x,y))) - 2p. sum(grad(B(x,y)) .grad(I(x,y))) + (p^2)sum(grad(B(x,y)) .grad(B(x,y)))
+
+Which is now my quadratic in p
+which I want to show has a minimum value
+
+It should also be noted here that we need sum(grad(B(x,y)) .grad(B(x,y))) > 0
+Effectively this means that the user can not use a background image which is blank as this will cause division by zero.
+
+Can you help me translate these ideas to lean?
+
+----------------------------------------------
+
+
+hmm I already have a proof of the vertex for case
+
+theorem vertex_quadratic_has_minimum (a h k : ℝ) (ha : 0 < a) :
+    ∃ x₀, ∀ x, quadratic_vertex a h k x ≥ quadratic_vertex a h k x₀ := by
+  use h
+  intro x
+  unfold quadratic_vertex
+  have h1 : 0 ≤ (x - h) ^ 2 := sq_nonneg (x - h)
+  have h2 : 0 ≤ a * (x - h) ^ 2 := mul_nonneg (le_of_lt ha) h1
+  calc
+    a * (x - h) ^ 2 + k ≥ 0 + k := add_le_add_right h2 k
+    _ = a * (h - h) ^ 2 + k := by simp_all only
+    [
+      mul_nonneg_iff_of_pos_left,
+      zero_add,
+      sub_self,
+      ne_eq,
+      OfNat.ofNat_ne_zero,
+      not_false_eq_true,
+      zero_pow,
+      mul_zero
+    ]
+
+
+in fact the minimum is x = h
+
+-----------------
+
+
