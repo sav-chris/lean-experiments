@@ -102,7 +102,26 @@ theorem vertex_quadratic_minimizer (a h k : ℝ) (ha : 0 < a) :
     a * (x - h)^2 + k ≥ 0 + k := add_le_add_right h2 k
     _ = a * (h - h)^2 + k := by simp
 
+noncomputable def quadratic_minimizer_point (a b : ℝ) : ℝ := -b / (2 * a)
 
+noncomputable def quadratic_minimum (a b c : ℝ) : ℝ :=
+  quadratic a b c (quadratic_minimizer_point a b)
+
+
+theorem quadratic_minimizer (a b c : ℝ) (ha : 0 < a) :
+  ∀ p : ℝ, quadratic a b c p ≥ quadratic_minimum a b c := by
+  let h := -b / (2 * a)
+  let k := c - b^2 / (4 * a)
+  have h_eq : ∀ p, quadratic a b c p = quadratic_vertex a h k p :=
+    quadratic_eq_vertex_form a b c (ne_of_gt ha)
+  have h_min := vertex_quadratic_minimizer a h k ha
+  intro p
+  unfold quadratic_minimum
+  unfold quadratic_minimizer_point
+  rw [h_eq p, h_eq h]
+  exact h_min p
+
+/-
 theorem quadratic_minimizer (a b c : ℝ) (ha : 0 < a) :
     ∀ p : ℝ, quadratic a b c p ≥ quadratic a b c (-b / (2 * a)) := by
   let h := -b / (2 * a)
@@ -113,6 +132,8 @@ theorem quadratic_minimizer (a b c : ℝ) (ha : 0 < a) :
   intro p
   rw [h_eq p, h_eq h]
   exact h_min p
+-/
+
 
 
 
@@ -126,26 +147,23 @@ def gradDot (f g : Gradient) (D : Finset Pixel) : ℝ :=
     fx₁ * gx₁ + fx₂ * gx₂
 
 
-
+/-
 def R (dI dB : Gradient) (D : Finset Pixel) (p : ℝ) : ℝ :=
   gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D
+-/
+
+def R (dI dB : Gradient) (D : Finset Pixel) (p : ℝ) : ℝ :=
+  quadratic (gradDot(dB dB D), - 2 * gradDot(dB dI D), gradDot(dI dI D), p)
+  --gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D
+  --let c := gradDot dI dI D
+  --let b := - 2 * gradDot dB dI D
+  --let a := gradDot dB dB D
+
+
 
 noncomputable def p_opt (dI dB : Gradient) (D : Finset Pixel) : ℝ :=
   gradDot dI dB D / gradDot dB dB D
 
-
-/-
-theorem R_has_minimum_at_p_opt
-  (dI dB : Gradient) (D : Finset Pixel)
-  (h : 0 < gradDot dB dB D) :
-  ∀ p : ℝ, R dI dB D p ≥ R dI dB D (p_opt dI dB D) := by
-  let a := gradDot dB dB D
-  let b := gradDot dB dI D
-  let c := gradDot dI dI D
-  have ha : 0 < a := h
-  apply quadratic_minimizer a b c ha
-  --apply quadratic_minimizer a (-2 * b) c ha
--/
 
 
 example (x : ℝ) :
@@ -154,11 +172,25 @@ example (x : ℝ) :
     simp
 
 
-
 example (x : ℝ) :
     deriv (fun x ↦ 3 * x^2) x = 6 * x :=
   by
-    simp
+    simp only
+    [
+      differentiableAt_const,
+      differentiableAt_fun_id,
+      DifferentiableAt.fun_pow,
+      deriv_fun_mul,
+      deriv_const',
+      zero_mul,
+      deriv_fun_pow'',
+      Nat.cast_ofNat,
+      Nat.add_one_sub_one,
+      pow_one,
+      deriv_id'',
+      mul_one,
+      zero_add
+    ]
     ring
 
 
@@ -194,129 +226,43 @@ by
 
 
 
-  --exact DifferentiableAt.pow (DifferentiableAt. ℝ x) 2
-
-
-
-  --rw [differentiable_at.const_mul 3]
-  --rw [differentiableAt_fun_id.pow]
-
-
-
-/-
---def f(x: ℝ) := 3 * x ^ 2
---def g(x: ℝ) := 2 * x
-
-lemma diff_distr (x : ℝ) : deriv ( fun y ↦ 3 * y ^ 2 + 2 * y ) x = deriv ( fun y ↦ 3 * y ^ 2 ) x + deriv ( fun y ↦ 2 * y ) x := by
-  --exact deriv_add (λ y, 3 * y ^ 2) (λ y, 2 * y) x,
-  let f := fun y ↦ 3 * y ^ 2
-  let g := fun y ↦ 2 * y
-
-  have h1 (x : ℝ) : DifferentiableAt ℝ f x := by
-    exact differentiable_at.const_mul 3 (differentiable_at_id'.pow 2)
-
-  have h2 (x : ℝ) : DifferentiableAt ℝ g x := by
-    exact differentiable_at.const_mul 2 differentiable_at_id'
-
-  --rw [←function.add_apply f g, deriv_add h1 h2]
-  sorry
-
--/
-
-/-
-lemma poly_diff_example (x : ℝ) : deriv (f + g) x = 6 * x + 2 := by
-  have h1 : DifferentiableAt ℝ f x := by
-    apply DifferentiableAt.const_mul
-    exact DifferentiableAt.pow differentiableAt_id 2
-
-  have h2 : DifferentiableAt ℝ g x := by
-    apply DifferentiableAt.const_mul
-    exact differentiableAt_id
-
-  rw [deriv_add h1 h2]
-  unfold f g
-  rw [deriv_const_mul, deriv_const_mul]
-  rw [deriv_pow 2]
-  trace_state
-  simp?
-  trace_state
-  ring
-  trace_state
--/
-
-
 lemma h2 (x : ℝ) : DifferentiableAt ℝ (g) x := by
     apply DifferentiableAt.const_mul
     exact differentiableAt_id
 
 
+
 lemma poly_diff_example (x : ℝ) : deriv (f + g) x = 6 * x + 2 := by
-  have h1 : DifferentiableAt ℝ (f) x := by
+  have h1 : DifferentiableAt ℝ f x := by
     apply DifferentiableAt.const_mul
-    apply differentiableAt_fun_id.pow
-  have h2 : DifferentiableAt ℝ (g) x := by
+    exact DifferentiableAt.pow differentiableAt_id 2
+  have h2 : DifferentiableAt ℝ g x := by
     apply DifferentiableAt.const_mul
     exact differentiableAt_id
-
-  have h_sq : DifferentiableAt ℝ (fun x ↦ x ^ 2) x := by
-    exact DifferentiableAt.pow differentiableAt_id 2
   rw [deriv_add h1 h2]
   unfold f g
-  rw [ deriv_const_mul 3 ]
-  rw [deriv_pow 2 ]
   ring
-  simp only [differentiableAt_fun_id, differentiableAt_const, deriv_fun_mul, deriv_id'', one_mul, deriv_const', mul_zero, add_zero]
-  trace_state
-  ring_nf
-  trace_state
-
-
-/-
-  rw [deriv_const_mul 2 (differentiableAt_id x)]
-
-  rw [deriv_const_mul, deriv_pow 2]
-  rw [deriv_const_mul, deriv_id']
-  rw [deriv_id]
--/
-
-
-
-
-
-/-
-lemma poly_diff_example (x : ℝ) : deriv (fun y ↦ 3 * y ^ 2 + 2 * y) x = 6 * x + 2:= by
-  have h1 : DifferentiableAt ℝ (fun y ↦ 3 * y ^ 2) x := by
-    sorry
-  have h2 : DifferentiableAt ℝ (fun y ↦ 2 * y ) x := by
-    sorry
-  rw [←deriv_add (fun y ↦ 3 * y ^ 2) (fun y ↦ 2 * y)  h1 h2]
--/
-
-/-
-  rw [deriv_add (diff_pow_two x) ]
-  rw [←diff_pow_two_const x]
-  rw [deriv_const_mul]
-  rw [deriv_id']
-  ring
-  apply differentiableAt_id
-  apply diff_pow_two_const
--/
-
-
-
-/-
-
-example (x : ℝ) : deriv (fun y ↦ 3 * y ^ 2) x = 6 * x := by
-
-
-  rw [deriv_const_mul]
-  trace_state
-
-  have diffh : DifferentiableAt ℝ (fun y ↦ y ^ 2) x := by
-    sorry
-
-  rw [deriv_pow 2]
-  trace_state
+  simp only
+  [
+    differentiableAt_fun_id, DifferentiableAt.fun_pow, differentiableAt_const,
+    deriv_fun_mul, deriv_fun_pow'', Nat.cast_ofNat, Nat.reduceSub, pow_one,
+    deriv_id'', mul_one, deriv_const', mul_zero, add_zero, one_mul
+  ]
   ring
 
--/
+
+theorem R_has_minimum_at_p_opt
+  (dI dB : Gradient) (D : Finset Pixel)
+  (h : 0 < gradDot dB dB D) :
+  ∀ p : ℝ, R dI dB D p ≥ R dI dB D (p_opt dI dB D) := by
+  let a := gradDot dB dB D
+  let b := gradDot dB dI D
+  let c := gradDot dI dI D
+  have ha : 0 < a := h
+  unfold R
+
+  apply quadratic_minimizer a b c ha
+  --change ∀ p : ℝ, quadratic a b c p ≥ quadratic a b c (-b / (2 * a))
+  --apply quadratic_minimizer a b c ha
+
+  --apply quadratic_minimizer a (-2 * b) c ha
