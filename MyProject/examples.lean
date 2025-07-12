@@ -1294,3 +1294,19 @@ theorem quadratic_minimizer (a b c : ℝ) (ha : 0 < a) :
   exact h_min p
 
 --------------------------------------------
+
+
+fun p =>
+      calc
+        R dI dB D p
+          = c - 2 * p * beta + p ^ 2 * a        := by rw [R_eq p]
+      _ = quadratic a b c p                     := by rw [rhs_eq_quad p]
+      _ ≥ quadratic a b c (p_opt dI dB D)       := by
+        have p_opt_eq : p_opt dI dB D = -b / (2 * a) := by
+          rw [p_opt, hb]
+          field_simp [hz]
+        rw [p_opt_eq]
+        apply quadratic_minimum
+        exact hz
+
+---------------------------------------------

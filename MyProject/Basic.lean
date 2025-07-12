@@ -147,18 +147,18 @@ def gradDot (f g : Gradient) (D : Finset Pixel) : ℝ :=
     fx₁ * gx₁ + fx₂ * gx₂
 
 
-/-
-def R (dI dB : Gradient) (D : Finset Pixel) (p : ℝ) : ℝ :=
-  gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D
--/
 
 def R (dI dB : Gradient) (D : Finset Pixel) (p : ℝ) : ℝ :=
-  quadratic (gradDot(dB dB D), - 2 * gradDot(dB dI D), gradDot(dI dI D), p)
+  gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D
+
+/-
+def R (dI dB : Gradient) (D : Finset Pixel) (p : ℝ) : ℝ :=
+  quadratic (gradDot (dB dB D), - 2 * gradDot (dB dI D), gradDot (dI dI D), p)
   --gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D
   --let c := gradDot dI dI D
   --let b := - 2 * gradDot dB dI D
   --let a := gradDot dB dB D
-
+-/
 
 
 noncomputable def p_opt (dI dB : Gradient) (D : Finset Pixel) : ℝ :=
@@ -250,18 +250,155 @@ lemma poly_diff_example (x : ℝ) : deriv (f + g) x = 6 * x + 2 := by
   ]
   ring
 
+theorem test_a_b (a b c: ℝ)( hb: a >= b )(hc : b >= c) : a >= c := by
+  exact ge_trans hb hc
+
+
+
+
 
 theorem R_has_minimum_at_p_opt
   (dI dB : Gradient) (D : Finset Pixel)
   (h : 0 < gradDot dB dB D) :
   ∀ p : ℝ, R dI dB D p ≥ R dI dB D (p_opt dI dB D) := by
-  let a := gradDot dB dB D
-  let b := gradDot dB dI D
-  let c := gradDot dI dI D
-  have ha : 0 < a := h
-  unfold R
+    let a := gradDot dB dB D
+    let beta := gradDot dB dI D
+    let b := -2 * beta
+    let c := gradDot dI dI D
+    let d := p_opt dI dB D
+    have ha    : a = gradDot dB dB D := rfl
+    have hbeta : beta = gradDot dB dI D := rfl
+    have hb    : b = -2 * beta := rfl
+    have hc    : c = gradDot dI dI D := rfl
+    have hd    : d = p_opt dI dB D := rfl
+    have hz : 0 < a := h
 
-  apply quadratic_minimizer a b c ha
+    have R_eq (p : ℝ) : R dI dB D p = c - 2 * p * beta + p ^ 2 * a := by
+      unfold R
+      rw [←ha, ←hbeta, ←hc]
+
+
+    have rhs_eq_quad (p : ℝ) : c - 2 * p * beta + p ^ 2 * a = quadratic a b c p := by
+      rw [hb]
+      unfold quadratic
+      ring
+
+    rw [R_eq]
+
+    unfold R
+
+    rw [rhs_eq_quad]
+
+    have lhs_eq_quad (p : ℝ) :
+      gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D =
+      quadratic a b c p :=
+      by
+        rw [←hc, ←hbeta, ←ha, hb]
+        unfold quadratic
+        ring
+
+    intro p
+    rw [lhs_eq_quad]
+
+    trace_state
+
+    rw[←hd]
+    trace_state
+
+    have h_quad_ineq : quadratic a b c d ≥ quadratic_minimum a b c :=
+      quadratic_minimizer a b c hz d
+
+    apply ge_trans
+    apply quadratic_minimizer a b c hz p
+    trace_state
+
+    unfold quadratic_minimum quadratic_minimizer_point quadratic
+
+    trace_state
+
+    /-
+
+    apply ge_trans
+    apply quadratic_minimizer a b c hz
+    trace_state -/
+
+    /-
+    trace_state
+
+    unfold quadratic_minimum quadratic_minimizer_point quadratic
+
+    trace_state
+
+    simp
+    ring
+    trace_state
+    -/
+
+
+
+
+
+
+
+/-
+    have h_popt_eq : p_opt dI dB D = quadratic_minimizer_point a b := by
+      rw [p_opt, quadratic_minimizer_point]
+      rw [hb]
+      field_simp [hz]
+
+    have h_quad_ineq : quadratic a b c (p_opt dI dB D) ≥ quadratic_minimum(a, b, c ) := by
+      apply quadratic_minimizer
+
+    have p_opt_eq : p_opt dI dB D = -b / (2 * a) := by
+      trace_state
+      rw [p_opt, hb]
+      trace_state
+      field_simp [hz]
+      -/
+
+
+    --apply quadratic_minimizer a b c hz
+
+
+    --rw [lhs_eq_quad]
+
+    /-
+    have p_opt_eq : p_opt dI dB D = -b / (2 * a) := by
+      rw [p_opt, hb]
+      field_simp [hz]
+
+    rw [p_opt_eq]
+    apply quadratic_minimizer a b c hz
+    -/
+
+
+
+    --have R_quad (p : ℝ) : gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D = quadratic ()
+
+
+
+/-
+  have ha1 : ∀ p : ℝ, gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D = quadratic a b c p := by
+    intro p
+    unfold quadratic
+    unfold a b c
+    ring
+
+  trace_state
+  rw [ha, hb, hc] at *
+  rw [←h_a, ←h_b, ←h_c]
+
+  have hpopt : p_opt dI dB D = quadratic_minimizer_point a b := by
+    unfold p_opt quadratic_minimizer_point
+    rw [←div_div]
+
+  rw [hpopt]
+
+  exact quadratic_minimizer a b c ha
+
+  -/
+
+  --apply quadratic_minimizer a b c ha
   --change ∀ p : ℝ, quadratic a b c p ≥ quadratic a b c (-b / (2 * a))
   --apply quadratic_minimizer a b c ha
 
