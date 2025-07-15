@@ -1310,3 +1310,101 @@ fun p =>
         exact hz
 
 ---------------------------------------------
+
+
+
+
+--    rw [add_le_add_right_iff] at *
+
+    --rw [←add_assoc, ←add_assoc]
+    --rw [add_le_add_right_iff]
+
+
+
+    /-
+
+    apply ge_trans
+    apply quadratic_minimizer a b c hz
+    trace_state -/
+
+    /-
+    trace_state
+
+    unfold quadratic_minimum quadratic_minimizer_point quadratic
+
+    trace_state
+
+    simp
+    ring
+    trace_state
+    -/
+
+
+
+
+
+
+
+/-
+    have h_popt_eq : p_opt dI dB D = quadratic_minimizer_point a b := by
+      rw [p_opt, quadratic_minimizer_point]
+      rw [hb]
+      field_simp [hz]
+
+    have h_quad_ineq : quadratic a b c (p_opt dI dB D) ≥ quadratic_minimum(a, b, c ) := by
+      apply quadratic_minimizer
+
+    have p_opt_eq : p_opt dI dB D = -b / (2 * a) := by
+      trace_state
+      rw [p_opt, hb]
+      trace_state
+      field_simp [hz]
+      -/
+
+
+    --apply quadratic_minimizer a b c hz
+
+
+    --rw [lhs_eq_quad]
+
+    /-
+    have p_opt_eq : p_opt dI dB D = -b / (2 * a) := by
+      rw [p_opt, hb]
+      field_simp [hz]
+
+    rw [p_opt_eq]
+    apply quadratic_minimizer a b c hz
+    -/
+
+
+
+    --have R_quad (p : ℝ) : gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D = quadratic ()
+
+
+
+/-
+  have ha1 : ∀ p : ℝ, gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D = quadratic a b c p := by
+    intro p
+    unfold quadratic
+    unfold a b c
+    ring
+
+  trace_state
+  rw [ha, hb, hc] at *
+  rw [←h_a, ←h_b, ←h_c]
+
+  have hpopt : p_opt dI dB D = quadratic_minimizer_point a b := by
+    unfold p_opt quadratic_minimizer_point
+    rw [←div_div]
+
+  rw [hpopt]
+
+  exact quadratic_minimizer a b c ha
+
+  -/
+
+  --apply quadratic_minimizer a b c ha
+  --change ∀ p : ℝ, quadratic a b c p ≥ quadratic a b c (-b / (2 * a))
+  --apply quadratic_minimizer a b c ha
+
+  --apply quadratic_minimizer a (-2 * b) c ha

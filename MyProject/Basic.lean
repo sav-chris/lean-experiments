@@ -254,6 +254,12 @@ theorem test_a_b (a b c: ℝ)( hb: a >= b )(hc : b >= c) : a >= c := by
   exact ge_trans hb hc
 
 
+lemma symmetry_grad (dI dB : Gradient)(D : Finset Pixel) : gradDot dI dB D = gradDot dB dI D := by
+  unfold gradDot
+  apply Finset.sum_congr rfl
+  intro x hx
+  simp only
+  rw [mul_comm (dI x).1 (dB x).1, mul_comm (dI x).2 (dB x).2]
 
 
 
@@ -300,106 +306,93 @@ theorem R_has_minimum_at_p_opt
     intro p
     rw [lhs_eq_quad]
 
-    trace_state
-
     rw[←hd]
-    trace_state
 
     have h_quad_ineq : quadratic a b c d ≥ quadratic_minimum a b c :=
       quadratic_minimizer a b c hz d
 
     apply ge_trans
     apply quadratic_minimizer a b c hz p
-    trace_state
 
     unfold quadratic_minimum quadratic_minimizer_point quadratic
 
+    -- TO DO: Refactor this into another lemma
+
+    let lhs_1 := a * d ^ 2 + b * d
+    have h_add_ineq_1 : a * d ^ 2 + b * d + c = lhs_1 + c := rfl
+
+    let lhs_2 := a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a))
+    have h_add_ineq_2 : a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c = lhs_2 + c := rfl
+
+    rw [h_add_ineq_1, h_add_ineq_2] at *
+
+    have lhs_leeq_rhs : lhs_1 + c ≤ lhs_2 + c ↔ lhs_1 ≤ lhs_2 := by
+      exact add_le_add_right_iff
+
+    rw [lhs_leeq_rhs]
+
+    unfold lhs_1 lhs_2
+
+    have simplify_rhs_1 :  a * (-b / (2 * a)) ^ 2 = b^2 /(4*a) := by
+      rw [pow_two]
+      rw [neg_div, neg_mul_neg, ←pow_two]
+      field_simp
+      ring
+
+    rw [simplify_rhs_1]
+
     trace_state
 
-    /-
+    have simplify_rhs_2 :  b * (-b / (2 * a)) = - b^2 / (2 * a) := by
+      rw [←mul_div_assoc, ←pow_two]
+      ring
 
-    apply ge_trans
-    apply quadratic_minimizer a b c hz
-    trace_state -/
-
-    /-
-    trace_state
-
-    unfold quadratic_minimum quadratic_minimizer_point quadratic
+    rw [simplify_rhs_2]
 
     trace_state
 
-    simp
+    have simplify_rhs_3 : b ^ 2 / (4 * a) + -b ^ 2 / (2 * a) = - b^2 / (4*a) := by
+      field_simp
+      ring
+
+    rw [simplify_rhs_3]
+
+    trace_state
+
+    have h_d_sub : d = beta / a := by
+      rw [hd, hbeta, ha]
+      unfold p_opt
+      rw [symmetry_grad]
+
+    rw [h_d_sub]
+
+    trace_state
+
+    have lhs_final :  a * (beta / a) ^ 2 + b * (beta / a) = - (beta^2)/a := by
+      rw [←pow_two, ←mul_div_assoc]
+      rw [←hb]
+      rw [←pow_two, ←mul_div_assoc]
+      field_simp
+      ring
+
+    rw [ lhs_final]
+
+    rw [hb]
+
+    rw [pow_two]
+
+    rw [mul_pow]
+
+    field_simp
     ring
+
+
+    --simp only [neg_mul, even_two, Even.neg_pow, ge_iff_le]
+    --ring
+    --aesop?
+
+    --rw [pow_two, mul_pow, ←mul_assoc]
+    --simp?
+
+
     trace_state
-    -/
-
-
-
-
-
-
-
-/-
-    have h_popt_eq : p_opt dI dB D = quadratic_minimizer_point a b := by
-      rw [p_opt, quadratic_minimizer_point]
-      rw [hb]
-      field_simp [hz]
-
-    have h_quad_ineq : quadratic a b c (p_opt dI dB D) ≥ quadratic_minimum(a, b, c ) := by
-      apply quadratic_minimizer
-
-    have p_opt_eq : p_opt dI dB D = -b / (2 * a) := by
-      trace_state
-      rw [p_opt, hb]
-      trace_state
-      field_simp [hz]
-      -/
-
-
-    --apply quadratic_minimizer a b c hz
-
-
-    --rw [lhs_eq_quad]
-
-    /-
-    have p_opt_eq : p_opt dI dB D = -b / (2 * a) := by
-      rw [p_opt, hb]
-      field_simp [hz]
-
-    rw [p_opt_eq]
-    apply quadratic_minimizer a b c hz
-    -/
-
-
-
-    --have R_quad (p : ℝ) : gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D = quadratic ()
-
-
-
-/-
-  have ha1 : ∀ p : ℝ, gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D = quadratic a b c p := by
-    intro p
-    unfold quadratic
-    unfold a b c
-    ring
-
-  trace_state
-  rw [ha, hb, hc] at *
-  rw [←h_a, ←h_b, ←h_c]
-
-  have hpopt : p_opt dI dB D = quadratic_minimizer_point a b := by
-    unfold p_opt quadratic_minimizer_point
-    rw [←div_div]
-
-  rw [hpopt]
-
-  exact quadratic_minimizer a b c ha
-
-  -/
-
-  --apply quadratic_minimizer a b c ha
-  --change ∀ p : ℝ, quadratic a b c p ≥ quadratic a b c (-b / (2 * a))
-  --apply quadratic_minimizer a b c ha
-
-  --apply quadratic_minimizer a (-2 * b) c ha
