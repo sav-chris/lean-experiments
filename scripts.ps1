@@ -7,3 +7,5 @@ lake build
 #update
 lake update
 
+lake update Canonical
+
