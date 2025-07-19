@@ -1,6 +1,8 @@
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Data.Real.Basic
 import Mathlib.Tactic
+import Mathlib.Tactic.Linarith
+
 
 import Mathlib.Data.Finset.Basic
 
@@ -262,6 +264,18 @@ lemma symmetry_grad (dI dB : Gradient)(D : Finset Pixel) : gradDot dI dB D = gra
   rw [mul_comm (dI x).1 (dB x).1, mul_comm (dI x).2 (dB x).2]
 
 
+lemma simplify_quad_inequality
+    (a b c d beta : ℝ)
+    (h_pos : 0 < a)
+    (h_beta : beta = - (1/2) * b)
+    (h_d : d = beta / a) :
+    a * d^2 + b * d + c ≤ a * (- b / (2 * a))^2 + b * (- b / (2 * a)) + c := by
+  apply le_add_right
+  rw [h_d, h_beta]
+  field_simp [ne_of_gt h_pos]
+  trace_state
+  linarith
+
 
 theorem R_has_minimum_at_p_opt
   (dI dB : Gradient) (D : Finset Pixel)
@@ -396,5 +410,3 @@ theorem R_has_minimum_at_p_opt
 
 
     trace_state
-
-

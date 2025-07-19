@@ -230,3 +230,39 @@ Abort.
 
 (*****************************)
 
+
+Lemma square_shift_expansion :
+  forall (a b x : R),
+    a <> 0 ->
+    (x - (- b / (2 * a))) ^ 2 =
+    x ^ 2 + (b / a) * x + (b ^ 2) / (4 * a ^ 2).
+Proof.
+  intros a b x Ha.
+  field_simplify.
+  ring.
+  lra.
+  lra.
+Qed.
+
+
+Lemma quadratic_eq_vertex_form :
+  forall (a b c x : R),
+    a <> 0 ->
+    quadratic a b c x =
+    quadratic_vertex a (- b / (2 * a)) (c - b ^ 2 / (4 * a)) x.
+Proof.
+  intros a b c x Ha.
+  unfold quadratic, quadratic_vertex.
+  assert (H1 : (x - (- b / (2 * a))) ^ 2 =
+               x ^ 2 + (b / a) * x + (b ^ 2) / (4 * a ^ 2)).
+  {
+    field_simplify [Ha].
+    ring.
+  }
+  rewrite H1.
+  field_simplify [Ha].
+  ring.
+Qed.
+
+
+(*********************************)
