@@ -1,0 +1,11 @@
+services:
+  coq:
+    image: coqorg/coq:latest
+    container_name: coq_runner
+    volumes:
+      - ./:/coq_project
+    working_dir: /coq_project
+    command: coqc main.v
+    #command: coqtop main.v
+
+    #opam update && opam install -y coq-stdpp

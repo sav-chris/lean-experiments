@@ -1408,3 +1408,33 @@ fun p =>
   --apply quadratic_minimizer a b c ha
 
   --apply quadratic_minimizer a (-2 * b) c ha
+
+---------------------------------------
+
+
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
+
+
+theorem le_add_both_sides {a b c : ℝ} (h : a + c ≤ b + c) : a ≤ b := by
+  have hc : a + c - c ≤ b + c - c := sub_le_sub_right h c
+  simp at hc
+  exact hc
+
+
+lemma simplify_quad_inequality (a b c d beta: ℝ)
+  (h : 0 < a)
+  (h1 : b = -2 * beta )
+  (h2 : d = beta/a )
+  --(h3 : beta ≠ 0 )
+  : ∀ a b c, a * d ^ 2 + b * d + c ≤ a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c := by
+
+  let lhs_1 := a * d ^ 2 + b * d
+  have h_add_ineq_1 : a * d ^ 2 + b * d + c = lhs_1 + c := rfl
+
+  let lhs_2 := a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a))
+  have h_add_ineq_2 : a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c = lhs_2 + c := rfl
+
+  rw [←h_add_ineq_1, ←h_add_ineq_2] at *
+
+  rw [le_add_both_sides ]
