@@ -1438,3 +1438,66 @@ lemma simplify_quad_inequality (a b c d beta: ℝ)
   rw [←h_add_ineq_1, ←h_add_ineq_2] at *
 
   rw [le_add_both_sides ]
+
+
+--------------------------------------------
+
+
+theorem add_sub_cancel (a b : ℝ) : a + b - b = a := by
+  -- Step 1: Rewrite subtraction as addition of the opposite
+  rw [sub_eq_add_neg] -- a + b - b becomes a + b + (-b)
+
+  -- Step 2: Use associativity of addition to regroup
+  rw [add_assoc] -- a + b + (-b) becomes (a + b) + (-b)
+
+  -- Step 3: Simplify the inner expression (b + -b = 0)
+  rw [add_neg_self] -- (a + b) + (-b) becomes a + 0
+
+  -- Step 4: Simplify a + 0 using identity property
+  rw [add_zero] -- a + 0 becomes a
+
+  -- Final result: equality is shown
+  rfl
+
+-----------------------------------------------
+
+  trace_state
+  --apply add_lt_add_left
+  let expr_left := a * d ^ 2 + b * d
+  let exp_right := a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a))
+
+  rw []
+
+  apply add_lt_right_thrm (expr_left expr_right c)
+
+  /-add_le_add_right  AddRightCancelSemigroup  apply AddLeftReflectLT (ha c) -/
+  /-rw [hd, hβ]
+  field_simp [ha.ne']
+  trace_state
+  ring_nf
+  exact le_refl _
+
+-/
+
+---------------------------------------------------
+
+  have lhs_leeq_rhs (lhs_1 lhs_2 c ) (h_ineq: lhs_1 + c ≤ lhs_2 + c) : lhs_1 ≤ lhs_2 := by
+
+
+  have lhs_leeq_rhs : lhs_1 + c ≤ lhs_2 + c ↔ lhs_1 ≤ lhs_2 := by
+    exact add_le_add_right_iff
+
+-------------------------------------------------------
+
+example {a b c : ℝ} (h : a + c ≤ b + c) : a ≤ b := by
+  -- Step 1: Subtract c from both sides of the inequality
+  have h₁ : (a + c) - c ≤ (b + c) - c := sub_le_sub_right h c
+
+  -- Step 2: Simplify left-hand side: (a + c) - c = a
+  rw [add_sub_cancel] at h₁
+
+  -- Step 3: Simplify right-hand side: (b + c) - c = b
+  rw [add_sub_cancel] at h₁
+
+  -- Step 4: h₁ now simplifies to: a ≤ b
+  exact h₁

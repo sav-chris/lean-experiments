@@ -8,9 +8,10 @@ import Mathlib.Data.Finset.Basic
 
 import Mathlib.Analysis.Calculus.Deriv.Pow
 import Mathlib.Analysis.Calculus.Deriv.Linear
---import Mathlib.Analysis.Calculus.Differentiable
 
 import Mathlib.Analysis.Calculus.Deriv.Add
+
+import Mathlib.Algebra.Order.Group.Defs
 
 
 open scoped BigOperators
@@ -123,21 +124,6 @@ theorem quadratic_minimizer (a b c : ℝ) (ha : 0 < a) :
   rw [h_eq p, h_eq h]
   exact h_min p
 
-/-
-theorem quadratic_minimizer (a b c : ℝ) (ha : 0 < a) :
-    ∀ p : ℝ, quadratic a b c p ≥ quadratic a b c (-b / (2 * a)) := by
-  let h := -b / (2 * a)
-  let k := c - b^2 / (4 * a)
-  have h_eq : ∀ p, quadratic a b c p = quadratic_vertex a h k p :=
-    quadratic_eq_vertex_form a b c (ne_of_gt ha)
-  have h_min := vertex_quadratic_minimizer a h k ha
-  intro p
-  rw [h_eq p, h_eq h]
-  exact h_min p
--/
-
-
-
 
 abbrev Pixel := ℕ × ℕ
 abbrev Gradient := Pixel → ℝ × ℝ
@@ -153,19 +139,9 @@ def gradDot (f g : Gradient) (D : Finset Pixel) : ℝ :=
 def R (dI dB : Gradient) (D : Finset Pixel) (p : ℝ) : ℝ :=
   gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D
 
-/-
-def R (dI dB : Gradient) (D : Finset Pixel) (p : ℝ) : ℝ :=
-  quadratic (gradDot (dB dB D), - 2 * gradDot (dB dI D), gradDot (dI dI D), p)
-  --gradDot dI dI D - 2 * p * gradDot dB dI D + p ^ 2 * gradDot dB dB D
-  --let c := gradDot dI dI D
-  --let b := - 2 * gradDot dB dI D
-  --let a := gradDot dB dB D
--/
-
 
 noncomputable def p_opt (dI dB : Gradient) (D : Finset Pixel) : ℝ :=
   gradDot dI dB D / gradDot dB dB D
-
 
 
 example (x : ℝ) :
@@ -264,17 +240,96 @@ lemma symmetry_grad (dI dB : Gradient)(D : Finset Pixel) : gradDot dI dB D = gra
   rw [mul_comm (dI x).1 (dB x).1, mul_comm (dI x).2 (dB x).2]
 
 
-lemma simplify_quad_inequality
-    (a b c d beta : ℝ)
-    (h_pos : 0 < a)
-    (h_beta : beta = - (1/2) * b)
-    (h_d : d = beta / a) :
-    a * d^2 + b * d + c ≤ a * (- b / (2 * a))^2 + b * (- b / (2 * a)) + c := by
-  apply le_add_right
-  rw [h_d, h_beta]
-  field_simp [ne_of_gt h_pos]
-  trace_state
-  linarith
+example {a b c : ℝ} (h : a + c ≤ b + c) : a ≤ b := by
+  simp_all only [add_le_add_iff_right]
+
+
+example {a b c : ℝ} (h : a ≤ b) : a + c ≤ b + c := by
+  apply add_le_add_right h
+
+example {a b c : ℝ} (h : a < b) : a + c < b + c := by
+  apply add_lt_add_right h
+
+
+theorem add_sub_cancel_thrm (a b : ℝ) : a + b - b = a := by
+  rw [sub_eq_add_neg]
+  rw [add_assoc]
+  rw [add_neg_cancel, add_zero]
+
+
+theorem add_lt_right_thrm {a b c : ℝ} (h : a + c < b + c) : a < b := by
+  have h₁ : (a + c) - c < (b + c) - c := sub_lt_sub_right h c
+
+  have h₂ : (a + c) - c = a := by
+    rw [sub_eq_add_neg]
+    rw [add_assoc]
+    simp_all only [add_lt_add_iff_right, add_sub_cancel_right, add_neg_cancel, add_zero]
+
+  have h₃ : (b + c) - c = b := by
+    rw [add_sub_cancel_thrm]
+
+  rw [h₂, h₃] at h₁
+
+  exact h₁
+
+lemma quadratic_vertex_minimizer_explicit
+    (a b c β d : ℝ) (ha : 0 < a)
+    (hβ : β = -(1/2) * b)
+    (hd : d = β / a) :
+    a * d ^ 2 + b * d + c ≤
+    a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c := by
+
+  let lhs_1 := a * d ^ 2 + b * d
+  have h_add_ineq_1 : a * d ^ 2 + b * d + c = lhs_1 + c := rfl
+
+  let lhs_2 := a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a))
+  have h_add_ineq_2 : a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c = lhs_2 + c := rfl
+
+  rw [h_add_ineq_1, h_add_ineq_2] at *
+
+  simp only [add_le_add_iff_right]
+
+  unfold lhs_1 lhs_2
+
+  have simplify_rhs_1 :  a * (-b / (2 * a)) ^ 2 = b^2 /(4*a) := by
+      rw [pow_two]
+      rw [neg_div, neg_mul_neg, ←pow_two]
+      field_simp
+      ring
+
+  rw [simplify_rhs_1]
+
+
+
+  have simplify_rhs_2 :  b * (-b / (2 * a)) = - b^2 / (2 * a) := by
+    rw [←mul_div_assoc]
+    ring
+
+  rw [simplify_rhs_2]
+
+  have simplify_rhs_3 : b ^ 2 / (4 * a) + -b ^ 2 / (2 * a) = - b^2 / (4*a) := by
+    field_simp
+    ring
+
+  rw [simplify_rhs_3]
+
+  rw [hd]
+
+  have lhs_final :  a * (β / a) ^ 2 + b * (β / a) = - (β^2)/a := by
+    rw [pow_two]
+    ring
+    rw [hβ]
+    simp only [one_div, neg_mul, even_two, Even.neg_pow, inv_pow]
+    field_simp
+    ring
+
+  rw [ lhs_final]
+  rw [hβ]
+  simp only [one_div, neg_mul, even_two, Even.neg_pow, ge_iff_le]
+
+  rw [pow_two]
+  ring
+  rfl
 
 
 theorem R_has_minimum_at_p_opt
@@ -296,7 +351,6 @@ theorem R_has_minimum_at_p_opt
     have R_eq (p : ℝ) : R dI dB D p = c - 2 * p * beta + p ^ 2 * a := by
       unfold R
       rw [←ha, ←hbeta, ←hc]
-
 
     have rhs_eq_quad (p : ℝ) : c - 2 * p * beta + p ^ 2 * a = quadratic a b c p := by
       rw [hb]
@@ -330,83 +384,15 @@ theorem R_has_minimum_at_p_opt
 
     unfold quadratic_minimum quadratic_minimizer_point quadratic
 
-    -- TO DO: Refactor this into another lemma
+    have hβ : beta = -(1/2) * b := by
+      simp_all only [neg_mul, implies_true, ge_iff_le, one_div, mul_neg, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true,
+        inv_mul_cancel_left₀, neg_neg, a, beta, b, c, d]
 
-    let lhs_1 := a * d ^ 2 + b * d
-    have h_add_ineq_1 : a * d ^ 2 + b * d + c = lhs_1 + c := rfl
-
-    let lhs_2 := a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a))
-    have h_add_ineq_2 : a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c = lhs_2 + c := rfl
-
-    rw [h_add_ineq_1, h_add_ineq_2] at *
-
-    have lhs_leeq_rhs : lhs_1 + c ≤ lhs_2 + c ↔ lhs_1 ≤ lhs_2 := by
-      exact add_le_add_right_iff
-
-    rw [lhs_leeq_rhs]
-
-    unfold lhs_1 lhs_2
-
-    have simplify_rhs_1 :  a * (-b / (2 * a)) ^ 2 = b^2 /(4*a) := by
-      rw [pow_two]
-      rw [neg_div, neg_mul_neg, ←pow_two]
-      field_simp
-      ring
-
-    rw [simplify_rhs_1]
-
-    trace_state
-
-    have simplify_rhs_2 :  b * (-b / (2 * a)) = - b^2 / (2 * a) := by
-      rw [←mul_div_assoc, ←pow_two]
-      ring
-
-    rw [simplify_rhs_2]
-
-    trace_state
-
-    have simplify_rhs_3 : b ^ 2 / (4 * a) + -b ^ 2 / (2 * a) = - b^2 / (4*a) := by
-      field_simp
-      ring
-
-    rw [simplify_rhs_3]
-
-    trace_state
-
-    have h_d_sub : d = beta / a := by
-      rw [hd, hbeta, ha]
-      unfold p_opt
+    have hd_1 : d = beta / a := by
+      rw [hd]
+      rw [hbeta]
+      rw [ha]
+      rw [p_opt]
       rw [symmetry_grad]
 
-    rw [h_d_sub]
-
-    trace_state
-
-    have lhs_final :  a * (beta / a) ^ 2 + b * (beta / a) = - (beta^2)/a := by
-      rw [←pow_two, ←mul_div_assoc]
-      rw [←hb]
-      rw [←pow_two, ←mul_div_assoc]
-      field_simp
-      ring
-
-    rw [ lhs_final]
-
-    rw [hb]
-
-    rw [pow_two]
-
-    rw [mul_pow]
-
-    field_simp
-    ring
-
-
-    --simp only [neg_mul, even_two, Even.neg_pow, ge_iff_le]
-    --ring
-    --aesop?
-
-    --rw [pow_two, mul_pow, ←mul_assoc]
-    --simp?
-
-
-    trace_state
+    apply quadratic_vertex_minimizer_explicit a b c beta d hz hβ hd_1

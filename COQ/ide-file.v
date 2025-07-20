@@ -83,6 +83,17 @@ Proof.
 Qed.
 
 
+(* 
+Lemma Rle_0_sqr : forall x : R, 0 <= x ^ 2.
+ *)
+
+Goal forall x h : R, 0 <= (x - h) ^ 2.
+Proof.
+  intros x h.
+  apply Rle_0_sqr.
+Qed.
+
+
 Lemma vertex_quadratic_minimizer :
   forall (a h k x : R),
     0 < a ->
