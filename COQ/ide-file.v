@@ -83,10 +83,6 @@ Proof.
 Qed.
 
 
-(* 
-Lemma Rle_0_sqr : forall x : R, 0 <= x ^ 2.
- *)
-
 Goal forall x h : R, 0 <= (x - h) ^ 2.
 Proof.
   intros x h.

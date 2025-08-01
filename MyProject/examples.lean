@@ -1501,3 +1501,450 @@ example {a b c : ℝ} (h : a + c ≤ b + c) : a ≤ b := by
 
   -- Step 4: h₁ now simplifies to: a ≤ b
   exact h₁
+
+
+----------------------------------------------------
+
+--def ImageMatrix := Matrix (Fin w) (Fin h) (ℝ × ℝ)
+/-
+def signal (I B : Matrix (Fin w) (Fin h) ℝ) (ρ : ℝ) : Matrix (Fin w) (Fin h) ℝ :=
+  λ x y => I x y - ρ * B x y
+-/
+
+
+----------------------------------------------------
+
+
+variable (w h :  ℕ )
+def ImageMatrix (w h : Nat) : Type := Matrix (Fin w) (Fin h) ℝ
+
+def signal (I B : ImageMatrix w h ) (ρ : ℝ) : ImageMatrix w h :=
+  λ x y => I x y - ρ * B x y
+
+def MultiIndex : List ℕ → Type
+  | []      => Unit
+  | (d::ds) => Fin d × MultiIndex ds
+
+
+def MultiMatrix (dims : List ℕ) (α : Type) : Type :=
+  (MultiIndex dims) → α
+
+-------------------------------------------------------
+
+def MultiIndex : List ℕ → Type
+  | []      => Unit
+  | (d::ds) => Fin d × MultiIndex ds
+
+
+def NDMatrix (dims : List ℕ) (α : Type) : Type :=
+  MultiIndex dims → α
+
+def signal {dims : List ℕ} (I B : NDMatrix dims ℝ) (ρ : ℝ) : NDMatrix dims ℝ :=
+  fun idx => I idx - ρ * B idx
+
+------------------------------------------------
+
+def R_edginess (ρ : ℝ) : ℝ :=
+  let S := signal I B ρ
+  let G := grad S
+  ∑ idx, ‖G idx‖^2
+
+theorem exists_minimizing_rho : ∃ ρ₀ : ℝ, ∀ ρ : ℝ, R_edginess ρ₀ ≤ R_edginess ρ := sorry
+
+
+--------------------------------------------------
+
+def grad (S : NDMatrix dims ℝ) : NDMatrix dims ℝ := sorry
+
+
+def R_edginess (I B : NDMatrix dims ℝ) (ρ : ℝ) : ℝ :=
+  let S := signal I B ρ
+  let G := grad S
+  ∑ idx, ‖G idx‖^2
+
+variable (I B : NDMatrix dims ℝ)
+variable {dims : List ℕ}
+
+-- λ
+--------------------------------------------------
+
+#check exampleImage.length
+
+#eval dims.length        -- Output: 2
+#eval dims.get? 0        -- Output: some 5
+#eval dims.get? 1        -- Output: some 7
+
+--------------------------------------------------
+
+R_edginess (I B : NDMatrix dims ℝ) (ρ : ℝ) :=
+  let S := signal I B ρ                -- S(idx) = I(idx) - ρ * B(idx)
+  let G := grad S                     -- symbolic gradient of S
+  ∑ idx : MultiIndex dims, norm_squared dims.length (G idx)
+
+theorem minimizing_rho_formula {dims : List ℕ} (I B : NDMatrix dims ℝ) :
+  let a := ∑ idx, norm_squared dims.length (grad (B idx))
+  let b := ∑ idx, inner_product (grad (I idx), grad (B idx))
+  ∃ ρ₀ : ℝ, ρ₀ = b / a ∧ ∀ ρ : ℝ, R_edginess I B ρ₀ ≤ R_edginess I B ρ
+
+theorem minimizing_rho_formula
+  {dims : List ℕ}
+  (I B : NDMatrix dims ℝ)
+  (hI : ∀ idx, Differentiable ℝ (λ ρ => grad (signal I B ρ) idx))
+  (hB : ∀ idx, Differentiable ℝ (λ ρ => grad (signal I B ρ) idx)) :
+  let a := ∑ idx, norm_squared dims.length (grad (B idx))
+  let b := ∑ idx, inner_product (grad (I idx), grad (B idx))
+  ∃ ρ₀ : ℝ, ρ₀ = b / a ∧ ∀ ρ : ℝ, R_edginess I B ρ₀ ≤ R_edginess I B ρ
+
+----------------------------------------------------
+
+
+
+def myTensor : Tensor [3, 4, 5] ℝ :=
+  fun idx =>
+    0
+
+def myTensor1 : Tensor [3, 4, 5] ℝ :=
+  fun ⟨i, ⟨j, ⟨k, _⟩⟩⟩ =>
+    (i.val * 4 * 5 + j.val * 5 + k.val : ℝ)
+
+#eval myTensor (0, (0, (0, ())))
+#eval myTensor (2, (3, (4, ())))
+
+
+def allTensorValues : Tensor [3, 4, 5] ℝ := do
+  let i ← List.finRange 3
+  let j ← List.finRange 4
+  let k ← List.finRange 5
+  pure (i + k + j)
+
+
+
+def allIndices : List (MultiIndex [3, 4, 5]) :=
+  List.finRange 3 >>= λ i =>
+    List.finRange 4 >>= λ j =>
+      List.finRange 5 >>= λ k =>
+        [ (i, (j, (k, ()))) ]
+
+#eval allIndices
+
+---------------------------------------------------
+
+def MultiIndex : List ℕ → Type
+  | []      => Unit
+  | (d::ds) => Fin d × MultiIndex ds
+
+
+def Tensor (dims : List ℕ) (α : Type) : Type :=
+  MultiIndex dims → α
+
+def tensorSize (dims : List ℕ) : ℕ :=
+  dims.foldl (· * ·) 1
+
+#eval tensorSize [3, 4, 5]  -- prints 60
+
+---------------------------------------------------
+
+structure TensorData (α : Type) where
+  dims : List ℕ
+  values : MultiIndex dims → α
+
+---------------------------------------------------
+
+def MultiIndex : List ℕ → Type
+  | []      => Unit
+  | (d::ds) => Fin d × MultiIndex ds
+
+
+def Tensor (dims : List ℕ) (α : Type) : Type :=
+  MultiIndex dims → α
+
+def signal {dims : List ℕ} (I B : Tensor dims ℝ) (ρ : ℝ) : Tensor dims ℝ :=
+  λ idx ↦ (I idx) - ρ * (B idx)
+
+def grad {dims : List ℕ}(F : Tensor dims ℝ) : (MultiIndex dims) → (List.Vector ℝ dims.length) := sorry
+
+---------------------------------------------------
+
+def grad {dims : List ℕ} (F : Tensor dims ℝ) : List (Tensor dims ℝ) := sorry
+
+def grad {dims : List ℕ} (F : Tensor dims ℝ) : Fin dims.length → Tensor dims ℝ
+
+def NDMatrix (dims : List ℕ) (α : Type) : Type :=
+  MultiIndex dims → α
+
+def grad {dims : List ℕ} (F : Tensor dims ℝ) : List (Tensor dims ℝ) := sorry
+def grad {dims : List ℕ}(F : Tensor dims ℝ) : (MultiIndex dims) → (List.Vector ℝ dims.length) := sorry
+
+---------------------------------------------------
+
+def partialDeriv {dims : List ℕ} (F : Tensor dims ℝ) (i : Fin dims.length) : Tensor dims ℝ := sorry
+
+def partialDeriv {dims : List ℕ} (F : Tensor dims ℝ) (i : Fin dims.length) : Tensor dims ℝ :=
+  Tensor.mapIndices (λ idx =>
+    let shiftedIdx := idx.update i (idx.get i + 1)
+    let f_x := F.get idx
+    let f_x_h := F.get shiftedIdx
+    (f_x_h - f_x)
+  )
+
+--------------------------------------------
+
+
+
+def MultiIndex : List ℕ → Type
+  | []      => Unit
+  | (d::ds) => Fin d × MultiIndex ds
+
+
+def Tensor (dims : List ℕ) (α : Type) : Type :=
+  MultiIndex dims → α
+
+
+
+def signal {dims : List ℕ} (I B : Tensor dims ℝ) (ρ : ℝ) : Tensor dims ℝ :=
+  λ idx ↦ (I idx) - ρ * (B idx)
+
+
+
+def partialDeriv {dims : List ℕ} (F : Tensor dims ℝ) (i : Fin dims.length) : Tensor dims ℝ := sorry
+
+def grad {dims : List ℕ} (F : Tensor dims ℝ) : List.Vector (Tensor dims ℝ) dims.length :=
+  List.Vector.ofFn (λ i : Fin dims.length => partialDeriv F i)
+
+
+
+
+def norm_squared (n : ℕ) (v : List.Vector ℝ n) : ℝ :=
+  v.toList.foldl (fun acc x => acc + x^2) 0
+
+def inner_product {n : ℕ} (v₁ v₂ : List.Vector ℝ n) : ℝ :=
+  List.zipWith (· * ·) v₁.toList v₂.toList |>.foldl (· + ·) 0
+
+
+def R_edginess {dims : List ℕ}(I B : Tensor dims ℝ) (ρ : ℝ) : ℝ :=
+  let S := signal I B ρ
+  let G := grad S
+  ∑ (idx : (Fin dims.length)), (norm_squared dims.length (G idx))
+
+
+theorem minimizing_rho_formula {dims : List ℕ} (I B : Tensor dims ℝ) :
+  let a := ∑ (idx : (Fin dims.length)), norm_squared dims.length (grad (B idx))
+  let b := ∑ (idx : (Fin dims.length)), inner_product (grad (I idx), grad (B idx))
+  ∃ ρ₀ : ℝ, ρ₀ = b / a ∧ ∀ ρ : ℝ, R_edginess I B ρ₀ ≤ R_edginess I B ρ := sorry
+
+
+theorem exists_minimizing_rho {dims : List ℕ} (I B : Tensor dims ℝ) :
+  ∃ ρ₀ : ℝ, ∀ ρ : ℝ, R_edginess I B ρ₀ ≤ R_edginess I B ρ := sorry
+
+
+def exampleImage : Tensor [5, 7] ℝ :=
+  fun idx => match idx with
+    | (i, (j, ())) => (i : ℕ) + (j : ℕ) + 0.1
+
+
+def exampleImage2 : Tensor [5, 7] ℚ :=
+  fun idx => match idx with
+    | (i, (j, ())) => (i : ℚ) + (j : ℚ) + 0.1
+
+
+#eval exampleImage2 ⟨3, ⟨2, ()⟩⟩
+#eval exampleImage2 ⟨0, ⟨0, ()⟩⟩
+
+#check exampleImage
+
+
+#check MultiIndex [5, 7]
+
+
+
+noncomputable def gaussian : (Fin 3 → ℝ) → ℝ :=
+  fun x => Real.exp (-(x 0)^2 - (x 1)^2 - (x 2)^2)
+
+
+noncomputable def gaussianND {ι : Type} [Fintype ι] (x : ι → ℝ) : ℝ :=
+  Real.exp (- ∑ i, (x i)^2)
+
+
+variable (f : (Fin 3 → ℝ) → ℝ) (x : Fin 3 → ℝ)
+
+#check fderiv ℝ f x
+
+-- - Gradient: Fin n → ((Fin n → ℝ) → ℝ)
+
+
+
+
+variables {ι : Type} [Fintype ι] [NormedAddGroup (ι → ℝ)]
+variables (I B : (ι → ℝ) → ℝ)  -- Continuous scalar fields
+
+-- Assume differentiability
+variable [∀ x, DifferentiableAt ℝ I x]
+variable [∀ x, DifferentiableAt ℝ B x]
+
+def grad1 (f : (ι → ℝ) → ℝ) (x : ι → ℝ) : ι → ℝ :=
+  (fderiv ℝ f x : (ι → ℝ) →L[ℝ] ℝ).toLinearMap
+
+-- Define a and b as integrals over the domain
+def a := ∫ x, ∥grad1 B x∥^2
+def b := ∫ x, inner (grad1 I x) (grad1 B x)
+
+-- The theorem statement
+theorem minimizing_rho_formula :
+  ∃ ρ₀ : ℝ, ρ₀ = b / a ∧ ∀ ρ : ℝ, R_edginess I B ρ₀ ≤ R_edginess I B ρ :=
+sorry
+
+
+theorem R_has_minimum_at_rho_opt
+  (dI dB : ℝ × ℝ → ℝ × ℝ)
+  (Ω : set (ℝ × ℝ))
+  (hΩ : measurable_set Ω)
+  (hdI : differentiable ℝ dI)
+  (hdB : differentiable ℝ dB)
+  (h : 0 < ∫ x in Ω, ⟨dB x, dB x⟩) :
+  ∀ ρ : ℝ,
+    (∫ x in Ω, ∥dI x - ρ • dB x∥^2)
+      ≥ (∫ x in Ω, ∥dI x - (ρ_opt dI dB Ω) • dB x∥^2)
+
+
+
+theorem R_has_minimum_at_rho_opt_1
+  (I B : ℝ × ℝ → ℝ × ℝ)
+  (Ω : set (ℝ × ℝ))
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableAt (ℝ×ℝ) I x)
+  (hB : DifferentiableAt (ℝ×ℝ) B x)
+  (h : 0 < ∫ x in Ω, ⟨B x, B x⟩) :
+  ∀ ρ : ℝ,
+    (∫ x in Ω, ∥ dI x - ρ • dB x ∥^2)
+      ≥ (∫ x in Ω, ∥dI x - (ρ_opt dI dB Ω) • dB x∥^2) := sorry
+
+
+
+theorem R_has_minimum_at_rho_opt
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ))
+  (μ : Measure (ℝ × ℝ) := volume)
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn (ℝ × ℝ) I Ω)
+  (hB : DifferentiableOn (ℝ × ℝ) B Ω) :
+  ∃ p_opt : ℝ := by sorry
+
+
+def S (p : ℝ) (x : ℝ × ℝ) := I x - p * B x
+
+def R (p : ℝ) : ℝ :=
+  ∫ x in Ω, ‖fderiv ℝ (S p) x‖^2
+
+
+λ f g ⇒ (f x)
+
+def
+
+theorem R_has_minimum_at_rho_opt
+  (I B : ℝ → ℝ)
+  (Ω : Set (ℝ))
+  (μ : Measure (ℝ) := volume)
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω) :
+
+  ∃ p_opt : ℝ := by sorry
+
+-----------------------------------------
+
+def dot (u v : ℝ × ℝ) : ℝ := u.1 * v.1 + u.2 * v.2
+
+noncomputable def p_opt_2d
+  (dI dB : ℝ × ℝ → ℝ × ℝ)
+  (Ω : Set (ℝ × ℝ))
+  (μ : Measure (ℝ × ℝ) := volume) : ℝ :=
+  (∫ x in Ω, dot (dI x) (dB x)) / (∫ x in Ω, dot (dB x) (dB x))
+
+
+noncomputable def p_opt_1d
+  (dI dB : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (μ : Measure ℝ := volume) : ℝ :=
+  (∫ x in Ω, dI x * dB x) / (∫ x in Ω, dB x ^ 2)
+
+
+theorem R_has_minimum_at_rho_opt
+  (I B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (μ : Measure ℝ := volume)
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω) :
+  ∃ ρ_opt : ℝ,
+    ∀ ρ : ℝ,
+      ∫ x in Ω, (deriv (fun x => I x - ρ_opt * B x)) x ^ 2 ≤
+               ∫ x in Ω, (deriv (fun x => I x - ρ * B x)) x ^ 2 := sorry
+
+theorem minimise_edginess
+  (I B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω) :
+  ∃ ρ_opt : ℝ, ∀ ρ : ℝ, edginess I B Ω ρ_opt ≤ edginess I B Ω ρ := sorry
+
+
+lemma edginess_strict_convex
+  (I B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω)
+  (hB_nonzero : ∫ x in Ω, (deriv B x)^2 ≠ 0) :
+  ∃! ρ_opt : ℝ, ∀ ρ : ℝ, edginess I B Ω ρ_opt ≤ edginess I B Ω ρ := sorry
+
+∫ x in Ω, dot (grad (fun x => I x - ρ * B x) x) (grad (fun x => I x - ρ * B x) x)
+
+------------------------------------
+
+
+noncomputable def grad (f : ℝ × ℝ → ℝ) (x : ℝ × ℝ) : ℝ × ℝ :=
+  ((fderiv ℝ f x) (1, 0), (fderiv ℝ f x) (0, 1))
+
+
+def dot (u v : ℝ × ℝ) : ℝ := u.1 * v.1 + u.2 * v.2
+
+
+noncomputable def ρ_opt_2d
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ))
+  (μ : Measure (ℝ × ℝ) := volume) : ℝ :=
+  (∫ x in Ω, dot (grad I x) (grad B x)) / (∫ x in Ω, dot (grad B x) (grad B x))
+
+
+noncomputable def edginess_2d
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ))
+  (ρ : ℝ)
+  (μ : Measure (ℝ × ℝ) := volume) : ℝ :=
+  ∫ x in Ω, ‖grad (fun x => I x - ρ * B x) x‖^2
+
+
+theorem minimise_edginess_2d
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ))
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω)
+  (hB_nonzero : ∫ x in Ω, dot (grad B x) (grad B x) ≠ 0) :
+  ∀ ρ : ℝ, edginess_2d I B Ω (ρ_opt_2d I B Ω) ≤ edginess_2d I B Ω ρ := sorry
+
+
+----------------------------------------------------
+
+theorem R_has_minimum_at_rho_opt
+  (I B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (μ : Measure ℝ := volume)
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω) :
+  ∃ ρ_opt : ℝ,
+    ∀ ρ : ℝ,
+      ∫ x in Ω, (deriv (fun x => I x - ρ_opt * B x)) x ^ 2 ≤
+               ∫ x in Ω, (deriv (fun x => I x - ρ * B x)) x ^ 2 := sorry

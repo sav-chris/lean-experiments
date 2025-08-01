@@ -12,14 +12,23 @@ import Mathlib.Analysis.Calculus.Deriv.Linear
 import Mathlib.Analysis.Calculus.Deriv.Add
 
 import Mathlib.Algebra.Order.Group.Defs
-
+import Mathlib.Data.Matrix.Basic
+import Mathlib.Data.Fin.Basic
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+--import Mathlib.MeasureTheory.Integral.IntervalIntegral
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
 
 open scoped BigOperators
 open Set Real Filter Topology
-
+open Function
 
 open Classical
 open scoped NNReal ENNReal
+open List
+open MeasureTheory
+
 
 def linear (m b x : ℝ) : ℝ := m * x + b
 
@@ -103,7 +112,7 @@ theorem vertex_quadratic_minimizer (a h k : ℝ) (ha : 0 < a) :
   have h2 : 0 ≤ a * (x - h)^2 := mul_nonneg (le_of_lt ha) h1
   calc
     a * (x - h)^2 + k ≥ 0 + k := add_le_add_right h2 k
-    _ = a * (h - h)^2 + k := by simp
+    _ = a * (h - h)^2 + k := by simp only [zero_add, sub_self, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, zero_pow, mul_zero]
 
 noncomputable def quadratic_minimizer_point (a b : ℝ) : ℝ := -b / (2 * a)
 
@@ -147,7 +156,16 @@ noncomputable def p_opt (dI dB : Gradient) (D : Finset Pixel) : ℝ :=
 example (x : ℝ) :
     deriv (fun x ↦ x^2 ) x = 2 * x :=
   by
-    simp
+    simp only
+    [
+      differentiableAt_fun_id,
+      deriv_fun_pow'',
+      Nat.cast_ofNat,
+      Nat.add_one_sub_one,
+      pow_one,
+      deriv_id'',
+      mul_one
+    ]
 
 
 example (x : ℝ) :
@@ -299,8 +317,6 @@ lemma quadratic_vertex_minimizer_explicit
 
   rw [simplify_rhs_1]
 
-
-
   have simplify_rhs_2 :  b * (-b / (2 * a)) = - b^2 / (2 * a) := by
     rw [←mul_div_assoc]
     ring
@@ -332,10 +348,10 @@ lemma quadratic_vertex_minimizer_explicit
   rfl
 
 
-theorem R_has_minimum_at_p_opt
+theorem R_has_minimum_at_ρ_opt
   (dI dB : Gradient) (D : Finset Pixel)
   (h : 0 < gradDot dB dB D) :
-  ∀ p : ℝ, R dI dB D p ≥ R dI dB D (p_opt dI dB D) := by
+  ∀ ρ : ℝ, R dI dB D ρ ≥ R dI dB D (p_opt dI dB D) := by
     let a := gradDot dB dB D
     let beta := gradDot dB dI D
     let b := -2 * beta
@@ -396,3 +412,58 @@ theorem R_has_minimum_at_p_opt
       rw [symmetry_grad]
 
     apply quadratic_vertex_minimizer_explicit a b c beta d hz hβ hd_1
+
+
+
+
+noncomputable def ρ_opt_1d
+  (I B : ℝ → ℝ)
+  (Ω : Set ℝ) : ℝ :=
+  (∫ x in Ω, deriv I x * deriv B x) / (∫ x in Ω, (deriv B x)^2)
+
+noncomputable def edginess (I B : ℝ → ℝ) (Ω : Set ℝ) (ρ : ℝ) : ℝ :=
+  ∫ x in Ω, (deriv (fun x => I x - ρ * B x)) x ^ 2
+
+theorem minimise_edginess
+  (I B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω)
+  (hB_nonzero : ∫ x in Ω, (deriv B x)^2 ≠ 0) :
+  ∀ ρ : ℝ, edginess I B Ω (ρ_opt_1d I B Ω) ≤ edginess I B Ω ρ := sorry
+
+
+
+noncomputable def grad (f : ℝ × ℝ → ℝ) (x : ℝ × ℝ) : ℝ × ℝ :=
+  ((fderiv ℝ f x) (1, 0), (fderiv ℝ f x) (0, 1))
+
+
+def dot (u v : ℝ × ℝ) : ℝ := u.1 * v.1 + u.2 * v.2
+
+
+noncomputable def ρ_opt_2d
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ)) : ℝ :=
+  (∫ x in Ω, dot (grad I x) (grad B x)) / (∫ x in Ω, dot (grad B x) (grad B x))
+
+
+noncomputable def edginess_2d
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ))
+  (ρ : ℝ) : ℝ :=
+  ∫ x in Ω, ‖grad (fun x => I x - ρ * B x) x‖^2
+
+
+theorem minimise_edginess_2d
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ))
+  (hΩ : MeasurableSet Ω)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω)
+  (hB_nonzero : ∫ x in Ω, dot (grad B x) (grad B x) ≠ 0) :
+  ∀ ρ : ℝ, edginess_2d I B Ω (ρ_opt_2d I B Ω) ≤ edginess_2d I B Ω ρ := by
+    rw [edginess_2d]
+    unfold edginess_2d
+    trace_state
+    sorry
