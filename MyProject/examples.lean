@@ -1948,3 +1948,51 @@ theorem R_has_minimum_at_rho_opt
     ∀ ρ : ℝ,
       ∫ x in Ω, (deriv (fun x => I x - ρ_opt * B x)) x ^ 2 ≤
                ∫ x in Ω, (deriv (fun x => I x - ρ * B x)) x ^ 2 := sorry
+
+
+----------------------------------------------------
+
+
+lemma grad_distributes
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ)) :
+  grad (fun x ↦ I x - ρ_opt_2d I B Ω * B x) = fun x ↦ grad I x - (ρ_opt_2d I B Ω) • (grad B x) := sorry
+
+def ∂f_∂x (f : ℝ × ℝ → ℝ) (x : ℝ × ℝ) : ℝ :=
+  (fderiv ℝ f x) (1, 0)
+
+def ∂f_∂y (f : ℝ × ℝ → ℝ) (x : ℝ × ℝ) : ℝ :=
+  (fderiv ℝ f x) (0, 1)
+
+
+
+
+      rw [fderiv_fun_const_mul hf c]
+      simp only [Prod.smul_mk, ContinuousLinearMap.smul_apply]
+      rw [ContinuousLinearMap.smul_apply]
+      simp only [Prod.smul_mk]
+
+
+
+
+lemma grad_distributes
+  (I B : ℝ × ℝ → ℝ)
+  (Ω : Set (ℝ × ℝ)) :
+  grad (fun x ↦ I x - ρ_opt_2d I B Ω * B x) = fun x ↦ grad I x - ρ_opt_2d I B Ω • grad B x := by sorry
+
+/-
+  funext x
+  unfold grad
+  trace_state
+  simp only [Prod.smul_mk, smul_eq_mul, Prod.mk_sub_mk, Prod.mk.injEq]
+  trace_state
+  --rw [fderiv_sub, fderiv_const_mul]
+  --simp only [Pi.sub_apply, Prod.smul_mk, Prod.mk_sub_mk]
+-/
+
+noncomputable def grad (f : ℝ × ℝ → ℝ) (x : ℝ × ℝ) : ℝ × ℝ :=
+  ((fderiv ℝ f x) (1, 0), (fderiv ℝ f x) (0, 1))
+  --let D := fderiv ℝ f x
+  --(D (1, 0), D (0, 1))
+
+----------------------------------------------------------

@@ -454,6 +454,32 @@ noncomputable def edginess_2d
   (ρ : ℝ) : ℝ :=
   ∫ x in Ω, ‖grad (fun x => I x - ρ * B x) x‖^2
 
+-- may need to use DifferentiableOn
+lemma grad_add (f g : ℝ × ℝ → ℝ) (x : ℝ × ℝ)
+  (hf : DifferentiableAt ℝ f x)
+  (hg : DifferentiableAt ℝ g x) :
+  grad (fun x ↦ f x + g x) x = grad f x + grad g x := by
+    unfold grad
+    simp only [Prod.mk_add_mk, Prod.mk.injEq]
+    rw [fderiv_fun_add hf hg]
+    rw [ContinuousLinearMap.add_apply]
+    trace_state
+    simp_all only [ContinuousLinearMap.add_apply, and_self]
+
+
+lemma grad_smul
+  (c : ℝ)
+  (x : ℝ × ℝ)
+  (f : ℝ × ℝ → ℝ)
+  (hf : DifferentiableAt ℝ f x):
+    grad (fun x ↦ c * f x) x = c • grad f x := by
+      unfold grad
+      rw [fderiv_const_mul]
+      simp only [ContinuousLinearMap.coe_smul', Pi.smul_apply, smul_eq_mul, Prod.smul_mk]
+      simp_all only
+
+
+
 
 theorem minimise_edginess_2d
   (I B : ℝ × ℝ → ℝ)
@@ -466,4 +492,5 @@ theorem minimise_edginess_2d
     rw [edginess_2d]
     unfold edginess_2d
     trace_state
+    rw [grad_add hI hB]
     sorry
