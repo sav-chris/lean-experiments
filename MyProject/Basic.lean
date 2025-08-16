@@ -20,6 +20,17 @@ import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
 
+
+import Mathlib.MeasureTheory.Integral.Bochner.Basic
+import Mathlib.MeasureTheory.Integral.Bochner.L1
+import Mathlib.MeasureTheory.Integral.Bochner.VitaliCaratheodory
+
+--import Mathlib.MeasureTheory.Integral.Bochner
+--import Analysis.Calculus.FDeriv.Basic
+--import Analysis.Calculus.Grad
+--import Analysis.Calculus.Deriv.Add
+--import Analysis.Calculus.Deriv.Smul
+
 open scoped BigOperators
 open Set Real Filter Topology
 open Function
@@ -415,14 +426,78 @@ theorem R_has_minimum_at_ρ_opt
 
 
 
+/-
+
+lemma scalar_mul_differentiable_within
+  (B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (ρ x : ℝ)
+  (hB : DifferentiableOn ℝ B Ω)
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ ρ • B x) Ω x :=
+DifferentiableWithinAt.const_smul (hB x hx) ρ
+
+
+lemma f_differentiable_within
+  (I : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ I x) Ω x := hI x hx
+
+
+lemma deriv_distribute
+  (I B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (hI : DifferentiableOn ℝ I Ω)
+  (hB : DifferentiableOn ℝ B Ω)
+:
+  ∀ (ρ x : ℝ), x ∈ Ω → Ω ∈ 𝓝 x → deriv (λ x ↦ I x - ρ • B x) x = deriv I x - ρ • deriv B x
+:= by
+  intros ρ x hx hn
+  let f := I
+  let g := λ x ↦ ρ • B x
+
+  have hf : DifferentiableWithinAt ℝ f Ω x := f_differentiable_within I Ω hI hx
+  have hg : DifferentiableWithinAt ℝ g Ω x := scalar_mul_differentiable_within B Ω ρ x hB hx
+  have hf' : DifferentiableAt ℝ f x := hf.differentiableAt hn
+  have hg' : DifferentiableAt ℝ g x := hg.differentiableAt hn
+  have hB' : DifferentiableAt ℝ B x := (hB x hx).differentiableAt hn
+
+  have deriv_h : deriv (λ x ↦ f x - g x) x = deriv f x - deriv g x := by
+    apply deriv_sub hf' hg'
+
+  rw [deriv_h]
+
+  unfold f g
+
+  have scalar_mul : deriv (λ x ↦ ρ • B x) x = ρ • deriv B x := by
+    simp_all only
+    [
+      ne_eq,
+      smul_eq_mul,
+      differentiableAt_const,
+      DifferentiableAt.fun_mul,
+      deriv_fun_sub,
+      deriv_fun_mul,
+      deriv_const',
+      zero_mul,
+      zero_add,
+      f,
+      g
+    ]
+
+  rw [scalar_mul]
+
 
 noncomputable def ρ_opt_1d
   (I B : ℝ → ℝ)
   (Ω : Set ℝ) : ℝ :=
-  (∫ x in Ω, deriv I x * deriv B x) / (∫ x in Ω, (deriv B x)^2)
+  (∫ x in Ω, deriv I x • deriv B x) / (∫ x in Ω, (deriv B x)^2)
 
 noncomputable def edginess (I B : ℝ → ℝ) (Ω : Set ℝ) (ρ : ℝ) : ℝ :=
-  ∫ x in Ω, (deriv (fun x => I x - ρ * B x)) x ^ 2
+  ∫ x in Ω, (deriv (λ x => I x - ρ • B x)) x ^ 2
+
 
 theorem minimise_edginess
   (I B : ℝ → ℝ)
@@ -431,8 +506,30 @@ theorem minimise_edginess
   (hI : DifferentiableOn ℝ I Ω)
   (hB : DifferentiableOn ℝ B Ω)
   (hB_nonzero : ∫ x in Ω, (deriv B x)^2 ≠ 0) :
-  ∀ ρ : ℝ, edginess I B Ω (ρ_opt_1d I B Ω) ≤ edginess I B Ω ρ := sorry
+  ∀ ρ : ℝ, edginess I B Ω (ρ_opt_1d I B Ω) ≤ edginess I B Ω ρ := by
+    rw [edginess]
+    unfold edginess
+    trace_state
+    rw [deriv_add, DifferentiableAt.const_mul, deriv_sub]
 
+    /-
+    have deriv_h : deriv (λ x ↦ I x - ρ_opt_1d I B Ω • B x) = deriv (λ x ↦ I x) - ρ_opt_1d I B Ω • deriv (λ x ↦ B x) := by
+
+      rw [deriv_fun_add hI' hB']
+      sorry
+    rw [deriv_h]
+    trace_state
+    simp only [pow_two]
+    trace_state
+    rw [deriv_fun_add, deriv_sub]
+    trace_state
+    - /
+
+    --simp only [Pi.sub_apply, Pi.smul_apply, smul_eq_mul]
+    --ring
+    trace_state
+    --simp only [Pi.sub_apply, Pi.smul_apply, smul_eq_mul]
+    --trace_state
 
 
 noncomputable def grad (f : ℝ × ℝ → ℝ) (x : ℝ × ℝ) : ℝ × ℝ :=
@@ -452,27 +549,34 @@ noncomputable def edginess_2d
   (I B : ℝ × ℝ → ℝ)
   (Ω : Set (ℝ × ℝ))
   (ρ : ℝ) : ℝ :=
-  ∫ x in Ω, ‖grad (fun x => I x - ρ * B x) x‖^2
+  ∫ x in Ω, ‖grad (λ x => I x - ρ • B x) x‖^2
 
--- may need to use DifferentiableOn
-lemma grad_add (f g : ℝ × ℝ → ℝ) (x : ℝ × ℝ)
-  (hf : DifferentiableAt ℝ f x)
-  (hg : DifferentiableAt ℝ g x) :
-  grad (fun x ↦ f x + g x) x = grad f x + grad g x := by
+
+lemma grad_add (f g : ℝ × ℝ → ℝ) (Ω : Set (ℝ × ℝ)) (x: ℝ × ℝ)
+  (hn : Ω ∈ 𝓝 x)
+  (hf : DifferentiableOn ℝ f Ω)
+  (hg : DifferentiableOn ℝ g Ω)
+  (hx : x ∈ Ω) :
+  grad (λ x ↦ f x + g x) x = grad f x + grad g x := by
+    have hf' := (hf x hx).differentiableAt hn
+    have hg' := (hg x hx).differentiableAt hn
     unfold grad
     simp only [Prod.mk_add_mk, Prod.mk.injEq]
-    rw [fderiv_fun_add hf hg]
+    rw [fderiv_fun_add hf' hg']
     rw [ContinuousLinearMap.add_apply]
-    trace_state
     simp_all only [ContinuousLinearMap.add_apply, and_self]
 
 
-lemma grad_smul
+lemma grad_scalar_multiply
   (c : ℝ)
   (x : ℝ × ℝ)
   (f : ℝ × ℝ → ℝ)
-  (hf : DifferentiableAt ℝ f x):
-    grad (fun x ↦ c * f x) x = c • grad f x := by
+  (Ω : Set (ℝ × ℝ))
+  (hn : Ω ∈ 𝓝 x)
+  (hx : x ∈ Ω)
+  (hf : DifferentiableOn ℝ f Ω):
+    grad (λ x ↦ c * f x) x = c • grad f x := by
+      have hf' := (hf x hx).differentiableAt hn
       unfold grad
       rw [fderiv_const_mul]
       simp only [ContinuousLinearMap.coe_smul', Pi.smul_apply, smul_eq_mul, Prod.smul_mk]
@@ -485,12 +589,29 @@ theorem minimise_edginess_2d
   (I B : ℝ × ℝ → ℝ)
   (Ω : Set (ℝ × ℝ))
   (hΩ : MeasurableSet Ω)
+  (hΩO : IsOpen Ω)
   (hI : DifferentiableOn ℝ I Ω)
   (hB : DifferentiableOn ℝ B Ω)
   (hB_nonzero : ∫ x in Ω, dot (grad B x) (grad B x) ≠ 0) :
   ∀ ρ : ℝ, edginess_2d I B Ω (ρ_opt_2d I B Ω) ≤ edginess_2d I B Ω ρ := by
+    intro ρ
+    have h_integrand : ∀ x ∈ Ω, ‖grad (λ x ↦ I x - ρ • B x) x‖ ^ 2 = ‖grad I x - ρ • grad B x‖ ^ 2 := by
+      sorry
+      /-
+      intro x hx
+      have hn : Ω ∈ 𝓝 x := IsOpen.mem_nhds hΩO hx
+      have hd : DifferentiableOn ℝ (fun x ↦ -ρ • B x) Ω := DifferentiableOn.const_smul hB (-ρ)
+      rw [grad_add (fun x ↦ I x) (fun x ↦ -ρ • B x) Ω x hn hI hd hx]
+      rw [grad_const_smul hB (-ρ) x]
+      rw [add_comm] -- optional, for matching shape
+      rw [norm_sub_eq_norm_add_neg] -- optional, if needed
+      - /
+
+
+    -- Now use this inside the integral:
     rw [edginess_2d]
     unfold edginess_2d
     trace_state
-    rw [grad_add hI hB]
-    sorry
+    rw [h_integrand]
+
+-/
