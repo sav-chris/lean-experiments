@@ -4129,3 +4129,1362 @@ theorem edginess_polynomial_eq
     trace_state
 
 }
+
+
+---------------------------------------------
+
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
+import Mathlib.Tactic.Linarith
+
+
+import Mathlib.Data.Finset.Basic
+
+import Mathlib.Analysis.Calculus.Deriv.Pow
+import Mathlib.Analysis.Calculus.Deriv.Linear
+
+import Mathlib.Analysis.Calculus.Deriv.Add
+
+import Mathlib.Algebra.Order.Group.Defs
+import Mathlib.Data.Matrix.Basic
+import Mathlib.Data.Fin.Basic
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
+
+
+import Mathlib.MeasureTheory.Integral.Bochner.Basic
+import Mathlib.MeasureTheory.Integral.Bochner.L1
+import Mathlib.MeasureTheory.Integral.Bochner.VitaliCaratheodory
+
+
+open scoped BigOperators
+open Set Real Filter Topology
+open Function
+
+open Classical
+open scoped NNReal ENNReal
+open List
+open MeasureTheory
+
+
+lemma scalar_mul_differentiable_within
+  (B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (ρ x : ℝ)
+  (hB : DifferentiableOn ℝ B Ω)
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ ρ • B x) Ω x :=
+DifferentiableWithinAt.const_smul (hB x hx) ρ
+
+
+lemma f_differentiable_within
+  (I : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (hI : DifferentiableOn ℝ I Ω)
+  (x : ℝ)
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ I x) Ω x := hI x hx
+
+
+lemma deriv_distributes
+    (I B : ℝ → ℝ)
+    (x : ℝ )
+    (Ω : Set ℝ)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ )
+    (hΩ_open : IsOpen Ω)
+    ( hΩ : x ∈ Ω )
+:
+    deriv (λ x ↦ I x - ρ • B x) x ^ 2 = (λ x ↦ (deriv I x ) - ρ • (deriv B x) ) x ^ 2
+:= by
+{
+    apply congrArg (λ y => y ^ 2)
+
+    let f := I
+    let g := λ x ↦ ρ • B x
+
+    let gg := λ x ↦ ρ • (deriv B x)
+
+    have hn : Ω ∈ 𝓝 x := hΩ_open.mem_nhds hΩ
+    have hf : DifferentiableWithinAt ℝ f Ω x := f_differentiable_within I Ω hI x hΩ
+    have hg : DifferentiableWithinAt ℝ g Ω x := scalar_mul_differentiable_within B Ω ρ x hB hΩ
+    have hf' : DifferentiableAt ℝ f x := hf.differentiableAt hn
+    have hg' : DifferentiableAt ℝ g x := hg.differentiableAt hn
+    have hB' : DifferentiableAt ℝ B x := (hB x hΩ).differentiableAt hn
+
+    change deriv (λ x => f x - g x) x = (λ x ↦ (deriv f x ) - ρ • (deriv B x) ) x
+
+    change deriv (λ x => f x - g x) x = (λ x ↦ (deriv f x ) - (gg x) ) x
+
+    have ρBh : (deriv g x) = gg x := by
+    {
+        unfold gg
+        unfold g
+        simp_all only [smul_eq_mul, deriv_const_mul_field', f, g]
+    }
+    simp only [←ρBh]
+
+    change deriv (f - g ) x = (deriv f x) - (deriv g x)
+
+    rw [deriv_sub]
+
+    apply hf'
+    apply hg'
+}
+
+
+-- - e =ᵐ[volume.restrict Ω]
+    --change (deriv (λ x => I x - ρ • B x) a ^ 2) =ᶠ[ae (volume.restrict Ω)] λ a => (λ x => deriv I x - ρ • deriv B x) a ^ 2
+    --change (deriv (λ x => I x - ρ • B x) a ^ 2) = ᵐ[volume.restrict Ω] λ a => (λ x => deriv I x - ρ • deriv B x) a ^ 2
+--filter_upwards [ae_restrict_mem (measurableSet_of_isOpen hΩ_open)] with a haΩ
+   --funext
+    --trace_state
+
+    --apply EventuallyEq.pow
+    --apply eventually_eq_of_mem (isOpen_mem_nhds hΩ_open)
+
+
+lemma deriv_distributes_over_sub_within_integral_1
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (hwh : w < h)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, deriv (λ x ↦ I x - ρ • B x) x ^ 2 =
+    ∫ x in Ω, (λ x ↦ (deriv I x ) - ρ • (deriv B x) ) x ^ 2
+:= by
+{
+    classical
+    apply integral_congr_ae
+
+    change (λ a => deriv (λ x => I x - ρ • B x) a ^ 2) =ᶠ[ae (volume.restrict Ω)] λ a => (λ x => deriv I x - ρ • deriv B x) a ^ 2
+
+    change (λ a => deriv (λ x => I x - ρ • B x) a ^ 2) =ᵐ[volume.restrict Ω] λ a => (λ x => deriv I x - ρ • deriv B x) a ^ 2
+    trace_state
+
+    -- unfold Filter.EventuallyEq
+    -- unfold Filter.Eventually
+
+    change ∀ x ∈ Ω, (λ a => deriv (λ x => I x - ρ • B x) a ^ 2) = λ a => (λ x => deriv I x - ρ • deriv B x) a ^ 2
+
+    have h_pointwise : ∀ x ∈ Ω, deriv (λ x ↦ I x - ρ • B x) x = deriv I x - ρ • deriv B x := by
+      intro x hx
+      apply (deriv_distributes I B x Ω hI hB ρ hΩ_open)
+
+    --intro x hx
+
+
+
+
+}
+
+
+lemma deriv_distributes_over_sub_within_integral_2
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (hwh : w < h)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, deriv (λ x ↦ I x - ρ • B x) x ^ 2 =
+    ∫ x in Ω, (λ x ↦ (deriv I x ) - ρ • (deriv B x) ) x ^ 2
+:= by
+{
+    apply integral_congr_ae
+
+    change (λ a => deriv (λ x => I x - ρ • B x) a ^ 2) =ᵐ[volume.restrict Ω] λ a => (λ x => deriv I x - ρ • deriv B x) a ^ 2
+
+    unfold Filter.EventuallyEq
+
+    trace_state
+
+    have h_deriv_eq
+    :
+        ∀ᵐ x ∂(volume.restrict Ω),
+        deriv (λ x ↦ I x - ρ • B x) x = deriv I x - ρ • deriv B x
+    := by
+    {
+        have h_mem : ∀ᵐ x ∂(volume.restrict Ω), x ∈ Ω := by
+        {
+            simp_all only [eventually_mem_set]
+
+            change Ω ∈ ae (volume.restrict Ω)
+            trace_state
+            sorry
+        }
+
+        apply h_mem
+
+        sorry
+    }
+
+    filter_upwards [h_deriv_eq] with x hx
+    simp only [hx]
+
+}
+
+
+lemma square_within_integral
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, (λ x => deriv I x - ρ • deriv B x) x ^ 2 =
+    ∫ x in Ω, (λ x ↦ (deriv I x ) ^ 2 - 2 • ρ • (deriv B x) • (deriv I x) + ρ • ρ • (deriv B x) ^ 2) x
+:= by
+{
+    --apply integral_congr_ae
+    --trace_state
+     -- ∀ᵐ (x : ℝ) ∂volume.restrict Ω, deriv (fun x => I x - ρ • B x) x = deriv I x - ρ • deriv B x
+    let f := I
+    let g := λ x ↦ ρ • B x
+    let gg := λ x ↦ ρ • (deriv B x)
+
+    apply integral_congr_ae
+
+    have h_diff : DifferentiableOn ℝ (λ x ↦ I x - ρ • B x) Ω :=
+      hI.sub (hB.const_smul ρ)
+
+    have h_deriv_eq
+    :
+        ∀ᵐ x ∂(volume.restrict Ω),
+        (λ x => deriv I x - ρ • deriv B x) x ^ 2 = (λ x ↦ (deriv I x ) ^ 2 - 2 • ρ • (deriv B x) • (deriv I x) + ρ • ρ • (deriv B x) ^ 2) x
+    := by
+    {
+        filter_upwards [self_mem_ae_restrict hM] with a hΩ
+
+        have hn : Ω ∈ 𝓝 a := hΩ_open.mem_nhds hΩ
+        have hf : DifferentiableWithinAt ℝ f Ω a := f_differentiable_within I Ω hI a hΩ
+        have hg : DifferentiableWithinAt ℝ g Ω a := scalar_mul_differentiable_within B Ω ρ a hB hΩ
+        have hf' : DifferentiableAt ℝ f a := hf.differentiableAt hn
+        have hg' : DifferentiableAt ℝ g a := hg.differentiableAt hn
+        have hB' : DifferentiableAt ℝ B a := (hB a hΩ).differentiableAt hn
+        trace_state
+
+        change (deriv (λ x => f x - g x) a) ^ 2  = ((λ x ↦ (deriv f x ) - ρ • (deriv B x) ) a ) ^ 2
+
+        change deriv (λ x => f x - g x) a = (λ x ↦ (deriv f x ) - (gg x) ) a
+
+        have ρBh : (deriv g a) = gg a := by
+        {
+            unfold gg
+            unfold g
+            simp_all only [smul_eq_mul, deriv_const_mul_field', f, g]
+        }
+        simp only [←ρBh]
+
+        change deriv (f - g ) a = (deriv f a) - (deriv g a)
+
+        rw [deriv_sub]
+
+        apply hf'
+        apply hg'
+    }
+
+    filter_upwards [h_deriv_eq] with x hx
+    simp only [hx]
+}
+
+
+
+
+lemma deriv_distributes_over_sub_within_integral
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, deriv (λ x ↦ I x - ρ • B x) x ^ 2 =
+    ∫ x in Ω, (λ x ↦ (deriv I x ) - ρ • (deriv B x) ) x ^ 2
+:= by
+{
+    let f := I
+    let g := λ x ↦ ρ • B x
+    let gg := λ x ↦ ρ • (deriv B x)
+
+    apply integral_congr_ae
+
+    have h_diff : DifferentiableOn ℝ (λ x ↦ I x - ρ • B x) Ω :=
+      hI.sub (hB.const_smul ρ)
+
+    have h_deriv_eq
+    :
+        ∀ᵐ x ∂(volume.restrict Ω),
+        deriv (λ x ↦ I x - ρ • B x) x = deriv I x - ρ • deriv B x
+    := by
+    {
+        filter_upwards [self_mem_ae_restrict hM] with a hΩ
+
+        have hn : Ω ∈ 𝓝 a := hΩ_open.mem_nhds hΩ
+        have hf : DifferentiableWithinAt ℝ f Ω a := f_differentiable_within I Ω hI a hΩ
+        have hg : DifferentiableWithinAt ℝ g Ω a := scalar_mul_differentiable_within B Ω ρ a hB hΩ
+        have hf' : DifferentiableAt ℝ f a := hf.differentiableAt hn
+        have hg' : DifferentiableAt ℝ g a := hg.differentiableAt hn
+        have hB' : DifferentiableAt ℝ B a := (hB a hΩ).differentiableAt hn
+
+        change deriv (λ x => f x - g x) a = (λ x ↦ (deriv f x ) - ρ • (deriv B x) ) a
+
+        change deriv (λ x => f x - g x) a = (λ x ↦ (deriv f x ) - (gg x) ) a
+
+        have ρBh : (deriv g a) = gg a := by
+        {
+            unfold gg
+            unfold g
+            simp_all only [smul_eq_mul, deriv_const_mul_field', f, g]
+        }
+        simp only [←ρBh]
+
+        change deriv (f - g ) a = (deriv f a) - (deriv g a)
+
+        rw [deriv_sub]
+
+        apply hf'
+        apply hg'
+    }
+
+    filter_upwards [h_deriv_eq] with x hx
+    simp only [hx]
+}
+
+def quadratic (a b c x : ℝ) : ℝ := a * (x ^ 2) + b * x + c
+
+noncomputable def c_coef (I : ℝ → ℝ) (Ω : Set ℝ) : ℝ := (∫ x in Ω, deriv I x) ^ 2
+
+noncomputable def b_coef (I B : ℝ → ℝ) (Ω : Set ℝ) : ℝ := - 2 • ∫ x in Ω, deriv I x • deriv B x
+
+noncomputable def a_coef ( B : ℝ → ℝ) (Ω : Set ℝ) : ℝ := ∫ x in Ω, deriv B x ^ 2
+
+
+noncomputable def edginess_polynomial (I B : ℝ → ℝ) (Ω : Set ℝ) (ρ : ℝ) : ℝ :=
+  (quadratic  (a_coef B Ω ) (b_coef I B Ω ) (c_coef I Ω) ρ )
+
+noncomputable def edginess (I B : ℝ → ℝ) (Ω : Set ℝ) (ρ : ℝ) : ℝ :=
+  ∫ x in Ω, ((deriv (λ x => I x - ρ • B x)) x ) ^ 2
+
+
+theorem edginess_polynomial_eq
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (hΩ_open : IsOpen Ω)
+:
+    ∀ ρ : ℝ, edginess I B Ω ρ = edginess_polynomial I B Ω ρ
+:= by
+{
+    unfold edginess edginess_polynomial
+    intro ρ
+    unfold quadratic
+    unfold a_coef b_coef c_coef
+    ring
+
+    rw [(deriv_distributes_over_sub_within_integral I B w h Ω hM hI hB ρ hΩ_open )]
+
+
+
+    trace_state
+
+}
+
+
+lemma expand_squared
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    (λ x ↦ (deriv I x ) - ρ • (deriv B x) ) ^ 2 =
+    λ x ↦ ((deriv I x) ^ 2 - 2 • ((deriv I x) • ρ • (deriv B x)) + (ρ • (deriv B x)) ^ 2)
+:= by
+{
+     sorry
+}
+
+lemma expand_squared_pointwise
+  (I B : ℝ → ℝ)
+  (ρ x : ℝ)
+:
+  ((deriv I x) - ρ • (deriv B x)) ^ 2 =
+    (deriv I x)^2 - 2 • (deriv I x) • (ρ • deriv B x) + (ρ • deriv B x)^2
+:= by
+{
+  sorry
+}
+
+--rw [ρB_squared]
+
+
+    --apply (expand_squared I B w h Ω hM hI hB ρ hΩ_open )
+    trace_state
+
+    --rw [← integral_congr _ (λ x hx, expand_squared_pointwise I B ρ x)]
+
+    --apply expand_squared
+
+
+/-
+    have h_pow_deriv
+    :
+        ((λ x ↦ deriv I x - ρ • deriv B x) )^ 2 =
+        (deriv I ) ^ 2 - (2 • ρ • deriv B • deriv I) + (ρ • ρ • deriv B • deriv B)
+    := by
+    {
+        ext x
+        simp only
+        [
+            smul_eq_mul, Pi.pow_apply, nsmul_eq_mul,
+            Nat.cast_ofNat, Algebra.mul_smul_comm,
+            Pi.add_apply, Pi.sub_apply, Pi.smul_apply,
+            Pi.mul_apply, Pi.ofNat_apply
+        ]
+        ring
+    }
+-/
+    --rw [h_pow_deriv]
+    /-
+    have h_pow_deriv_integral :
+        ∫ (x : ℝ) in Ω, (λ x ↦ deriv I x - ρ • deriv B x) x ^ 2 =
+        ∫ (x : ℝ) in Ω, (deriv I x) ^ 2 - 2 • ρ • (deriv B x) • (deriv I x) + ρ • ρ • (deriv B x) • (deriv B x)
+    := by
+    {
+        rw [h_pow_deriv]
+    }
+    -/
+
+    trace_state
+----------------------------------------
+
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Analysis.Calculus.Deriv.Pow
+import Mathlib.Analysis.Calculus.Deriv.Linear
+import Mathlib.Analysis.Calculus.Deriv.Add
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
+
+open Set Real Topology
+open Function
+open MeasureTheory
+
+lemma scalar_mul_differentiable_within
+  (B : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (ρ x : ℝ)
+  (hB : DifferentiableOn ℝ B Ω)
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ ρ • B x) Ω x :=
+DifferentiableWithinAt.const_smul (hB x hx) ρ
+
+lemma f_differentiable_within
+  (I : ℝ → ℝ)
+  (Ω : Set ℝ)
+  (hI : DifferentiableOn ℝ I Ω)
+  (x : ℝ)
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ I x) Ω x := hI x hx
+
+lemma deriv_distributes_over_sub_within_integral
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, deriv (λ x ↦ I x - ρ • B x) x ^ 2 =
+    ∫ x in Ω, (λ x ↦ (deriv I x ) - ρ • (deriv B x) ) x ^ 2
+:= by
+{
+    let f := I
+    let g := λ x ↦ ρ • B x
+    let gg := λ x ↦ ρ • (deriv B x)
+
+    apply integral_congr_ae
+
+    have h_diff : DifferentiableOn ℝ (λ x ↦ I x - ρ • B x) Ω :=
+      hI.sub (hB.const_smul ρ)
+
+    have h_deriv_eq
+    :
+        ∀ᵐ x ∂(volume.restrict Ω),
+        deriv (λ x ↦ I x - ρ • B x) x = deriv I x - ρ • deriv B x
+    := by
+    {
+        filter_upwards [self_mem_ae_restrict hM] with a hΩ
+
+        have hn : Ω ∈ 𝓝 a := hΩ_open.mem_nhds hΩ
+        have hf : DifferentiableWithinAt ℝ f Ω a := f_differentiable_within I Ω hI a hΩ
+        have hg : DifferentiableWithinAt ℝ g Ω a := scalar_mul_differentiable_within B Ω ρ a hB hΩ
+        have hf' : DifferentiableAt ℝ f a := hf.differentiableAt hn
+        have hg' : DifferentiableAt ℝ g a := hg.differentiableAt hn
+        have hB' : DifferentiableAt ℝ B a := (hB a hΩ).differentiableAt hn
+
+        change deriv (λ x => f x - g x) a = (λ x ↦ (deriv f x ) - ρ • (deriv B x) ) a
+
+        change deriv (λ x => f x - g x) a = (λ x ↦ (deriv f x ) - (gg x) ) a
+
+        have ρBh : (deriv g a) = gg a := by
+        {
+            unfold gg
+            unfold g
+            simp_all only [smul_eq_mul, deriv_const_mul_field', f, g]
+        }
+        simp only [←ρBh]
+
+        change deriv (f - g ) a = (deriv f a) - (deriv g a)
+
+        rw [deriv_sub]
+
+        apply hf'
+        apply hg'
+    }
+
+    filter_upwards [h_deriv_eq] with x hx
+    simp only [hx]
+}
+
+
+lemma expand_squared_term
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, ((λ x ↦ (deriv I x ) - ρ • (deriv B x) ) x ) ^ 2 =
+    ∫ x in Ω, (deriv I x)^2 - 2 • ρ • (deriv I x) • ( deriv B x) + (ρ • deriv B x)^2
+:= by
+{
+    let f := I
+    let g := λ x ↦ ρ • B x
+    let gg := λ x ↦ ρ • (deriv B x)
+
+    apply integral_congr_ae
+
+    have h_diff : DifferentiableOn ℝ (λ x ↦ I x - ρ • B x) Ω :=
+      hI.sub (hB.const_smul ρ)
+
+    have h_deriv_eq
+    :
+        ∀ᵐ x ∂(volume.restrict Ω),
+        deriv (λ x ↦ I x - ρ • B x) x = deriv I x - ρ • deriv B x
+    := by
+    {
+        filter_upwards [self_mem_ae_restrict hM] with a hΩ
+
+        have hn : Ω ∈ 𝓝 a := hΩ_open.mem_nhds hΩ
+        have hf : DifferentiableWithinAt ℝ f Ω a := f_differentiable_within I Ω hI a hΩ
+        have hg : DifferentiableWithinAt ℝ g Ω a := scalar_mul_differentiable_within B Ω ρ a hB hΩ
+        have hf' : DifferentiableAt ℝ f a := hf.differentiableAt hn
+        have hg' : DifferentiableAt ℝ g a := hg.differentiableAt hn
+        have hB' : DifferentiableAt ℝ B a := (hB a hΩ).differentiableAt hn
+
+        change deriv (λ x => f x - g x) a = (λ x ↦ (deriv f x ) - ρ • (deriv B x) ) a
+
+        change deriv (λ x => f x - g x) a = (λ x ↦ (deriv f x ) - (gg x) ) a
+
+        have ρBh : (deriv g a) = gg a := by
+        {
+            unfold gg
+            unfold g
+            simp_all only [smul_eq_mul, deriv_const_mul_field', f, g]
+        }
+        simp only [←ρBh]
+
+        change deriv (f - g ) a = (deriv f a) - (deriv g a)
+
+        rw [deriv_sub]
+
+        apply hf'
+        apply hg'
+    }
+
+    filter_upwards [h_deriv_eq] with x hx
+    ring
+    simp only [smul_eq_mul]
+    ring
+}
+
+/-
+theorem lhs_eq_rhs
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ (x : ℝ) in Ω, deriv I x ^ 2 - 2 • (ρ * (deriv I x * deriv B x)) + (ρ * deriv B x) ^ 2 = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 + -(2 * ∫ (x :  ℝ) in Ω, deriv I x * deriv B x) * ρ + (∫ (x : ℝ) in Ω, deriv I x) ^ 2
+:= by
+{
+    let A := (∫ (x : ℝ) in Ω, deriv I x) ^ 2
+    change ∫ (x : ℝ) in Ω, deriv I x ^ 2 - 2 • (ρ * (deriv I x * deriv B x)) + (ρ * deriv B x) ^ 2 = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 + -(2 * ∫ (x :  ℝ) in Ω, deriv I x * deriv B x) * ρ + A
+}
+-/
+
+
+noncomputable def c_coef (I : ℝ → ℝ) (Ω : Set ℝ) : ℝ := (∫ x in Ω, deriv I x) ^ 2
+
+noncomputable def b_coef (I B : ℝ → ℝ) (Ω : Set ℝ) : ℝ := - 2 • ∫ x in Ω, deriv I x • deriv B x
+
+noncomputable def a_coef ( B : ℝ → ℝ) (Ω : Set ℝ) : ℝ := ∫ x in Ω, deriv B x ^ 2
+
+
+theorem lhs_eq_rhs
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ (x : ℝ) in Ω, deriv I x ^ 2 - ρ * (deriv I x * deriv B x) * 2 + (ρ * deriv B x) ^ 2 = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 + -(ρ * (2 * ∫ (x : ℝ) in Ω, deriv I x * deriv B x)) + (∫ (x : ℝ) in Ω, deriv I x) ^ 2
+:= by
+{
+    let a := a_coef B Ω
+    let b := ∫ (x : ℝ) in Ω, deriv I x * deriv B x
+    let c := c_coef I Ω
+    change ∫ (x : ℝ) in Ω, deriv I x ^ 2 - ρ * (deriv I x * deriv B x) * 2 + (ρ * deriv B x) ^ 2 = a * ρ ^ 2 + -(ρ * (2 * ∫ (x : ℝ) in Ω, deriv I x * deriv B x)) + c
+
+    change ∫ (x : ℝ) in Ω, deriv I x ^ 2 - ρ * (deriv I x * deriv B x) * 2 + (ρ * deriv B x) ^ 2 = a * ρ ^ 2 + -(ρ * (2 * b)) + c
+    ring
+    trace_state
+    change ∫ (x : ℝ) in Ω, -(deriv I x * ρ * deriv B x * 2) + deriv I x ^ 2 + (ρ ^ 2) * deriv B x ^ 2 = -(ρ * b * 2) + (ρ ^ 2) * a + c
+
+
+
+}
+
+
+
+theorem lhs_eq_rhs_2
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ (x : ℝ) in Ω, -(deriv I x * ρ * deriv B x * 2) + deriv I x ^ 2 + (ρ ^ 2) * deriv B x ^ 2 =
+    (∫ (x : ℝ) in Ω, -2 * ρ *(deriv I x * deriv B x )) + (∫ (x : ℝ) in Ω, deriv I x ^ 2) + (ρ ^ 2) * (∫ (x : ℝ) in Ω, deriv B x ^ 2)
+:= by
+{
+    trace_state
+    sorry
+}
+
+
+lemma integral_distributes_over_addition
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ (x : ℝ) in Ω, deriv I x ^ 2 - ρ * (deriv I x * deriv B x) * 2 + (ρ * deriv B x) ^ 2 = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 + -(ρ * (2 * ∫ (x : ℝ) in Ω, deriv I x * deriv B x)) + (∫ (x : ℝ) in Ω, deriv I x) ^ 2
+:= by
+{
+    let f := λ x ↦ deriv I x ^ 2
+    let g := λ x ↦ ρ * (deriv I x * deriv B x) * 2
+    let h := λ x ↦ (ρ * deriv B x) ^ 2
+    change ∫ (x : ℝ) in Ω, f x - (g x) + ((ρ * deriv B x) ^ 2) = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 + -(ρ * (2 * ∫ (x : ℝ) in Ω, deriv I x * deriv B x)) + (∫ (x : ℝ) in Ω, deriv I x) ^ 2
+
+    change ∫ (x : ℝ) in Ω, (f x) - (g x) + (h x) = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 + -(ρ * (2 * ∫ (x : ℝ) in Ω, deriv I x * deriv B x)) + (∫ (x : ℝ) in Ω, deriv I x) ^ 2
+
+    have dist_int_fgh
+    :
+        ∫ (x : ℝ) in Ω, (f x) - (g x) + (h x) = (∫ (x : ℝ) in Ω, (f x)) - (∫ (x : ℝ) in Ω, (g x)) + ∫ (x : ℝ) in Ω, (h x)
+    := by
+    {
+        trace_state
+        sorry
+    }
+
+    rw  [dist_int_fgh]
+
+    change ((∫ (x : ℝ) in Ω, f x) - ∫ (x : ℝ) in Ω, g x) + ∫ (x : ℝ) in Ω, h x = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 + -(ρ * (2 * ∫ (x : ℝ) in Ω, deriv I x * deriv B x)) + (∫ (x : ℝ) in Ω, deriv I x) ^ 2
+
+    have f_eq : (∫ (x : ℝ) in Ω, deriv I x) ^ 2 = ∫ (x : ℝ) in Ω, (f x)
+    := by
+    {
+        sorry
+    }
+
+    rw [f_eq]
+
+    have h_eq : (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 = ∫ (x : ℝ) in Ω, (h x)
+    := by
+    {
+        sorry
+    }
+
+    rw [h_eq]
+
+    have g_eq : -(ρ * (2 * ∫ (x : ℝ) in Ω, deriv I x * deriv B x)) = -∫ (x : ℝ) in Ω, (g x)
+    := by
+    {
+        sorry
+    }
+
+    rw [g_eq]
+
+    let F := ∫ (x : ℝ) in Ω, f x
+    let G := ∫ (x : ℝ) in Ω, g x
+    let H := ∫ (x : ℝ) in Ω, h x
+
+    change F - G + H = H - G + F
+    ring
+}
+---------------------------------------------------------
+
+noncomputable def func_on_Ω
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (ρ : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (x : {x // x ∈ Ω}) : ℝ
+:=
+    deriv (λ z ↦ I z - ρ • B z) x.val ^ 2
+
+
+
+noncomputable def func_dist_on_Ω
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (ρ : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (x : {x // x ∈ Ω}) : ℝ
+:=
+    (deriv I x.val - ρ • deriv B x.val) ^ 2
+
+
+noncomputable def func_on_ℝ
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (ρ : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (x : ℝ) : ℝ
+:=
+    if hx : x ∈ Ω then
+      func_on_Ω I B w h ρ Ω ⟨x, hx⟩
+    else
+      0
+
+noncomputable def int_on_func
+    (I B : ℝ → ℝ)
+    (w h : ℝ)
+    (ρ : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h) : ℝ
+:=
+    ∫ x in Ω, func_on_ℝ I B w h ρ Ω x
+
+----------------------------------------------------------
+
+lemma f_integrable
+    (I : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hΩ_open : IsOpen Ω)
+    (hI'     : ContDiffOn ℝ 1 I (Icc w h))
+    (h_lt    : w < h)
+:
+    let f := λ x ↦ deriv I x ^ 2
+    Integrable f (volume.restrict Ω)
+:= by
+{
+    let f := λ x ↦ deriv I x ^ 2
+
+    have deriv_measurable : Measurable (λ x ↦ deriv I x)  := by
+    {
+        sorry
+    }
+
+    have deriv_measurable_2 : Measurable (λ x ↦ (deriv I x) ^ 2)  := by
+    {
+        simpa [pow_two] using deriv_measurable.mul deriv_measurable
+    }
+
+    have deriv_finite : HasFiniteIntegral f (volume.restrict Ω) := by
+    {
+        sorry
+    }
+
+    have f_measurable : AEStronglyMeasurable f (volume.restrict Ω) := by
+    {
+        sorry
+    }
+    --AEStronglyMeasurable f (volume.restrict Ω) ∧ HasFiniteIntegral f (volume.restrict Ω)
+
+    unfold Integrable
+
+    exact ⟨f_measurable, deriv_finite⟩
+}
+
+------------------------------------------------------------------------
+
+
+lemma f_integrable
+    (I : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hΩ_open : IsOpen Ω)
+    (hI'     : ContDiffOn ℝ 1 I (Icc w h))
+    (h_lt    : w < h)
+    (h_I_finite : HasFiniteIntegral I (volume.restrict Ω))
+    (hI_measurable : AEStronglyMeasurable I (volume.restrict Ω))
+    (hI_integrable : Integrable I (volume.restrict Ω))
+:
+    let f := λ x ↦ deriv I x ^ 2
+    Integrable f (volume.restrict Ω)
+:= by
+{
+    let f := λ x ↦ deriv I x ^ 2
+
+    have deriv_measurable : Measurable (λ x ↦ deriv I x)  := by
+    {
+        sorry
+    }
+
+    have deriv_measurable_2 : Measurable (λ x ↦ (deriv I x) ^ 2)  := by
+    {
+        simpa [pow_two] using deriv_measurable.mul deriv_measurable
+    }
+
+    have deriv_finite : HasFiniteIntegral f (volume.restrict Ω) := by
+    {
+        --unfold HasFiniteIntegral
+        unfold f
+        simpa [pow_two] using hI_measurable.mul
+
+    }
+
+    have f_measurable : AEStronglyMeasurable f (volume.restrict Ω) := by
+    {
+        unfold f
+        --unfold AEStronglyMeasurable
+        simpa [pow_two] using hI_measurable.mul deriv_measurable
+        trace_state
+    }
+
+    unfold Integrable
+
+    exact ⟨f_measurable, deriv_finite⟩
+}
+
+---------------------------------------------------------------
+
+variable [fact (measure_theory.measure_space.is_locally_finite volume)]
+variable (hAC : ∀ x ∈ Ω, ∃ δ > 0, ∀ y ∈ Ioo (x - δ) (x + δ), has_deriv_at I (deriv I y) y)
+variable (hL2 : integrable_on (λ x, (deriv I x)^2) Ω)
+
+---------------------------------------------------------------
+
+
+lemma f_integrable
+    (I : ℝ → ℝ)
+    (w h : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h)
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hΩ_open : IsOpen Ω)
+    (hI'     : ContDiffOn ℝ 1 I (Icc w h))
+    (h_lt    : w < h)
+    (h_I_finite : HasFiniteIntegral I (volume.restrict Ω))
+    (hI_measurable : AEStronglyMeasurable I (volume.restrict Ω))
+    (hI_integrable : Integrable I (volume.restrict Ω))
+:
+    let f := λ x ↦ deriv I x ^ 2
+    Integrable f (volume.restrict Ω)
+:= by
+{
+    let f := λ x ↦ deriv I x ^ 2
+
+    have deriv_measurable : Measurable (λ x ↦ deriv I x)  := by
+    {
+        trace_state
+        sorry
+    }
+
+    have deriv_measurable_2 : Measurable (λ x ↦ (deriv I x) ^ 2)  := by
+    {
+        simpa [pow_two] using deriv_measurable.mul deriv_measurable
+    }
+
+    have deriv_finite : HasFiniteIntegral f (volume.restrict Ω) := by
+    {
+        --unfold HasFiniteIntegral
+        unfold f
+        --simpa [pow_two] using hI_measurable.mul
+        sorry
+    }
+
+    have deriv_measurable_strong : AEStronglyMeasurable (λ x ↦ deriv I x) (volume.restrict Ω) := by
+    {
+        trace_state
+        sorry
+    }
+
+    have f_measurable : AEStronglyMeasurable f (volume.restrict Ω) := by
+    {
+        unfold f
+        --unfold AEStronglyMeasurable
+        --simpa [pow_two] using hI_measurable.mul deriv_measurable
+        simp [pow_two]
+        --unfold AEStronglyMeasurable
+        trace_state
+        sorry
+    }
+
+    have deriv_int : Integrable (λ x ↦ deriv I x) (volume.restrict Ω) := by
+    {
+        trace_state
+        sorry
+    }
+
+    have f_integrable : Integrable f (volume.restrict Ω)
+    {
+        unfold f
+        simp only [pow_two]
+        sorry
+    }
+
+    unfold Integrable
+
+    exact ⟨f_measurable, deriv_finite⟩
+}
+---------------------------------------------------------------------------
+
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
+import Mathlib.Tactic.Linarith
+
+
+import Mathlib.Data.Finset.Basic
+
+import Mathlib.Analysis.Calculus.Deriv.Pow
+import Mathlib.Analysis.Calculus.Deriv.Linear
+
+import Mathlib.Analysis.Calculus.Deriv.Add
+
+import Mathlib.Algebra.Order.Group.Defs
+import Mathlib.Data.Matrix.Basic
+import Mathlib.Data.Fin.Basic
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
+
+
+import Mathlib.MeasureTheory.Integral.Bochner.Basic
+import Mathlib.MeasureTheory.Integral.Bochner.L1
+import Mathlib.MeasureTheory.Integral.Bochner.VitaliCaratheodory
+
+import Mathlib.Order.RelClasses
+
+
+open scoped BigOperators
+open Set Real Filter Topology
+open Function
+
+open Classical
+open scoped NNReal ENNReal
+open List
+open MeasureTheory
+
+
+
+/-
+lemma deriv_squared_integrable
+  (hI : I ∈ W^{1,2} (Ω)) :
+  IntegrableOn (λ x ↦ (deriv I x)^2) Ω volume := by
+{
+    -- Follows from the fact that deriv I ∈ L^2(Ω)
+    -- So (deriv I)^2 ∈ L^1(Ω)
+
+}
+-/
+
+def inSobolevW12 (I : ℝ → ℝ) (Ω : Set ℝ) : Prop :=
+  IntegrableOn I Ω volume ∧ IntegrableOn (deriv I) Ω volume
+
+
+lemma deriv_squared_integrable_1
+    (I : ℝ → ℝ)
+    (hI : (inSobolevW12 I Ω))
+:
+    IntegrableOn (λ x ↦ (deriv I x)^2) Ω volume := by
+{
+    unfold IntegrableOn
+    unfold Integrable
+    trace_state
+}
+
+--let f := λ x ↦ deriv I x ^ 2
+
+lemma deriv_square_integrable_2
+    (I B : ℝ → ℝ)
+    (w h_ : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h_)
+    (hM: MeasurableSet Ω)
+:
+    Integrable (λ x ↦ deriv I x ^ 2) (volume.restrict Ω)
+:= by
+{
+    let f := λ x ↦ deriv I x ^ 2
+    unfold Integrable
+
+
+    --unfold f
+
+    --unfold AEStronglyMeasurable
+    --unfold HasFiniteIntegral
+    /-
+    unfold StronglyMeasurable
+    unfold Tendsto
+    unfold atTop
+    unfold Filter.map
+    -/
+
+}
+
+--let g := λ x ↦ ρ * (deriv I x * deriv B x) * 2
+lemma g_edgable
+    (I B : ℝ → ℝ)
+    (w h_ : ℝ)
+    (Ω : Set ℝ := Set.Ioo w h_)
+    (hM: MeasurableSet Ω)
+:
+    Integrable (λ x ↦ ρ * (deriv I x * deriv B x) * 2) (volume.restrict Ω)
+:= by
+{
+    let f := λ x ↦ (deriv I x * deriv B x)
+    change Integrable (λ x ↦ ρ * (f x) * 2 ) (volume.restrict Ω)
+    let Ρ : ℝ := 2 * ρ
+    have h_factor : (λ x ↦ ρ * (f x) * 2) = λ x ↦ Ρ * (f x) := by
+    {
+        funext x
+        dsimp [Ρ]
+        ring
+    }
+    rw [h_factor]
+
+    apply Integrable.const_mul
+    trace_state
+}
+----------------------------------------------------------------
+
+/-
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
+import Mathlib.Tactic.Linarith
+import Mathlib.Data.Finset.Basic
+import Mathlib.Analysis.Calculus.Deriv.Pow
+import Mathlib.Analysis.Calculus.Deriv.Linear
+import Mathlib.Analysis.Calculus.Deriv.Add
+import Mathlib.Algebra.Order.Group.Defs
+import Mathlib.Data.Matrix.Basic
+import Mathlib.Data.Fin.Basic
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
+import Mathlib.MeasureTheory.Integral.Bochner.Basic
+import Mathlib.MeasureTheory.Integral.Bochner.L1
+import Mathlib.MeasureTheory.Integral.Bochner.VitaliCaratheodory
+import Mathlib.Order.RelClasses -/
+import Mathlib.Analysis.InnerProductSpace.Basic -- product notation ⟪ ⟫
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
+
+open scoped BigOperators
+open Set Real Filter Topology
+open Function
+open Classical
+open scoped NNReal ENNReal
+open List
+open MeasureTheory
+open scoped InnerProductSpace
+
+/-
+variable (n : ℕ )
+variable (f g : (Fin n → ℝ) → ℝ)
+variable (x : ℝ )
+
+#check λ x ↦ fderiv ℝ f x                   -- ℝ-linear map E →L[ℝ] F
+#check (λ x ↦ (fderiv ℝ f x)) 1             -- an element of F
+--#check ⟪fderiv ℝ f x, fderiv ℝ g x ⟫  -- dot product in F
+-/
+
+
+noncomputable def grad {n : ℕ } (f : (Fin n → ℝ) → ℝ) (x : Fin n → ℝ) : Fin n → ℝ :=
+    λ i => (fderiv ℝ f x) (Pi.basisFun ℝ (Fin n) i)
+
+noncomputable def dot_grad {n : ℕ } (f g : (Fin n → ℝ) → ℝ) (x : Fin n → ℝ) : ℝ :=
+    ∑ i, grad f x i * grad g x i
+
+
+def f₁ {n} : (Fin n → ℝ) → ℝ := λ x => ∑ i, x i
+
+
+#check dot_grad f₁ f₁
+
+
+#check 1
+
+variable (x_vec : Fin n → ℝ)
+#check dot_grad f₁ f₁ x_vec
+
+def MultiIndex : List ℕ → Type
+  | []      => Unit
+  | (d::ds) => Fin d × MultiIndex ds
+
+--------------------------------------------------------------------------------
+
+def Ioo_nd (n : ℕ ) (w l : Fin n → ℝ) : Set (Fin n → ℝ) :=
+    {x | ∀ i, w i < x i ∧ x i < l i}
+
+
+def x : Fin 3 → ℝ := λ i => 0.5
+def w : Fin 3 → ℝ := λ i => 0.0
+def l : Fin 3 → ℝ := λ i => 1.0
+
+example : x ∈ Ioo_nd 3 w l := by
+  simp [Ioo_nd]
+  intro i
+  simp [w]
+  simp [l]
+  simp [x]
+  constructor
+  · linarith
+  · linarith
+
+--------------------------------------------------------------------------
+
+example : outside_point ∉ Ioo_nd n lower upper := by
+  simp [Ioo_nd]
+  simp [outside_point]
+  simp [lower]
+  simp [upper]
+  simp [n]
+  constructor
+  · sorry
+  · constructor
+
+
+
+def Ioo_nd (n : ℕ ) (w l : Fin n → ℝ) : Set (Fin n → ℝ) :=
+    {x | ∀ i, w i < x i ∧ x i < l i}
+
+
+def n : ℕ := 3
+def x : Fin n → ℝ := λ i => 0.5
+def lower : Fin n → ℝ := λ i => 0.0
+def upper : Fin n → ℝ := λ i => 1.0
+def outside_point : Fin n → ℝ := λ i => 1.5
+
+example : x ∈ Ioo_nd n lower upper := by
+  simp [Ioo_nd]
+  intro i
+  simp [lower]
+  simp [upper]
+  simp [x]
+  constructor
+  · linarith
+  · linarith
+
+
+example : outside_point ∉ Ioo_nd n lower upper := by
+  simp [Ioo_nd]
+  constructor
+  · {
+      simp [outside_point]
+      intro a
+      simp [upper]
+      linarith
+    }
+  ·
+    {
+        simp [n]
+        exact ⟨0, by decide⟩
+    }
+
+--------------------------------------------------------------------------
+
+
+def Ioo_nd (n : ℕ ) (w l : Fin n → ℝ) : Set (Fin n → ℝ) :=
+    {x | ∀ i, w i < x i ∧ x i < l i}
+
+
+def n : ℕ := 3
+def x : Fin n → ℝ := λ i => 0.5
+def lower : Fin n → ℝ := λ i => 0.0
+def upper : Fin n → ℝ := λ i => 1.0
+def outside_point : Fin n → ℝ := λ i => 1.5
+
+example : x ∈ Ioo_nd n lower upper := by
+  simp [Ioo_nd]
+  intro i
+  simp [lower]
+  simp [upper]
+  simp [x]
+  constructor
+  · linarith
+  · linarith
+
+
+example : outside_point ∉ Ioo_nd n lower upper := by
+  simp [Ioo_nd]
+  constructor
+  · {
+      simp [outside_point]
+      intro a
+      simp [upper]
+      linarith
+    }
+  ·
+    {
+        simp [n]
+        exact ⟨0, by decide⟩
+    }
+
+
+def is_in_region (n : ℕ) (lower upper : Fin n → ℝ) (x : Fin n → ℝ) : Prop :=
+    x ∈ Ioo_nd n lower upper
+#check is_in_region 3 lower upper x        -- returns a proposition
+#check is_in_region 3 lower upper outside_point
+
+----------------------------------------------------------
+def M : ℕ := 5
+
+def sum_over_index_functions (F : (Fin M → Fin M) → ℝ ) : ℝ  :=
+  ∑ idx : (Fin M → Fin M), F idx
+
+#eval sum_over_index_functions (λ idx ↦ 1 )
+
+def seque : ℝ := sum_over_index_functions (λ idx ↦ 1 )
+
+example : seque = 3125 := by
+{
+    unfold seque
+    unfold sum_over_index_functions
+    rw [Finset.sum_const]
+    simp_all only [Finset.card_univ, Fintype.card_pi, Fintype.card_fin, Finset.prod_const, nsmul_eq_mul, Nat.cast_pow]
+    unfold M
+    ring
+}
+
+-------------------------------------------------------------
+
+def n : ℕ := 3
+def x : Fin n → ℝ := λ i => 0.5
+def lower : Fin n → ℝ := λ i => 0.0
+def upper : Fin n → ℝ := λ i => 1.0
+def outside_point : Fin n → ℝ := λ i => 1.5
+
+example : x ∈ Ioo_nd n lower upper := by
+  simp [Ioo_nd]
+  intro i
+  simp [lower]
+  simp [upper]
+  simp [x]
+  constructor
+  · linarith
+  · linarith
+
+
+example : outside_point ∉ Ioo_nd n lower upper := by
+  simp [Ioo_nd]
+  constructor
+  · {
+      simp [outside_point]
+      intro a
+      simp [upper]
+      linarith
+    }
+  ·
+    {
+        simp [n]
+        exact ⟨0, by decide⟩
+    }
+
+
+def is_in_region (n : ℕ) (lower upper : Fin n → ℝ) (x : Fin n → ℝ) : Prop :=
+    x ∈ Ioo_nd n lower upper
+#check is_in_region 3 lower upper x        -- returns a proposition
+#check is_in_region 3 lower upper outside_point
+
+lemma is_in_region{n : ℕ}(x : Fin n → ℝ)(lower upper : Fin n)
+:
+    x ∈ Ioo_nd n lower upper
+:= by
+  simp [Ioo_nd]
+  intro i
+  constructor
+  ·
+  {
+      trace_state
+      sorry
+  }
+  ·
+  {
+      trace_state
+  }
+
+  --simp only [x]
+  --simp [lower]
+  --simp [upper]
+  --simp [x]
+  constructor
+  · linarith
+  · linarith
+
+------------------------------------------
