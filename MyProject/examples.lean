@@ -5488,3 +5488,66 @@ lemma is_in_region{n : ℕ}(x : Fin n → ℝ)(lower upper : Fin n)
   · linarith
 
 ------------------------------------------
+
+ have h_ρ_factor
+        (ρ : ℝ)
+        (u : (Fin n → ℝ) →L[ℝ] ℝ)
+        (B : (Fin n → ℝ) → ℝ)
+        (x : Fin n → ℝ)
+    :
+        (inner_prod_2ab_term ρ u B x) = (∑ i, (u) (Pi.single i 1) • ρ • (fderiv ℝ B x) (Pi.single i 1))
+    := by
+    {
+        unfold inner_prod_2ab_term
+        --rw [Finset.mul_sum]
+        rw [Finset.smul_sum]
+        --ring
+
+        --change ∑ x_1, ρ • u (Pi.single x_1 1) • (fderiv ℝ B x) (Pi.single x_1 1) = ∑ x_1, u (Pi.single x_1 1) • ρ • (fderiv ℝ B x) (Pi.single x_1 1)
+        change ∑ x_1, ρ • u (Pi.single x_1 1) • (fderiv ℝ B x) (Pi.single x_1 1) = ∑ x_1, u (Pi.single x_1 1) • ρ • (fderiv ℝ B x) (Pi.single x_1 1)
+
+        --simp
+        --rw [Finset.smul_comm]
+        --rw [Finset.sum_congr]
+        rw [Finset. ]
+
+        trace_state
+/-
+        have h_uρ_commute (i : Fin n) : ρ • u (Pi.single i 1) = u (Pi.single i 1) • ρ := by
+        {
+            rw [smul_eq_mul, smul_eq_mul, mul_comm]
+        }
+
+        apply [(h_uρ_commute i)]
+
+        trace_state
+ -/
+    }
+
+--------------------------------------
+
+noncomputable def grad {n : ℕ} (f : (Fin n → ℝ) → ℝ) (x : Fin n → ℝ) : Fin n → ℝ :=
+  λ i ↦ fderiv ℝ f x (Pi.single i 1)
+
+noncomputable def gradNorm {n : ℕ} (f : (Fin n → ℝ) → ℝ) (x : Fin n → ℝ) : ℝ :=
+    (Norm.norm (grad f x))
+
+  --‖grad f x‖
+--set_option diagnostics true
+
+noncomputable def S_n
+    {n : ℕ }
+    (I B : (Fin n → ℝ) → ℝ)
+    (x : Fin n → ℝ)
+    (ρ : ℝ ) : Fin n → ℝ :=
+    λ i ↦ ((grad I x i) - ρ • (grad B x i))
+
+def f : (Fin 2 → ℝ) → ℝ := λ x ↦ x 0 ^ 2 + x 1 ^ 2
+def g : (Fin 2 → ℝ) → ℝ := λ x ↦ x 0 + x 1
+def x : Fin 2 → ℝ := ![1, 2]
+def ρ : ℝ := 0.5
+
+#eval S_n f g x ρ 0
+#reduce S_n f g x ρ 1
+
+--------------------------------------

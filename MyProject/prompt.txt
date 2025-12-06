@@ -91,5 +91,38 @@ in fact the minimum is x = h
 
 -----------------
 
+Can you tell me more about the equivalence between - (Fin n → ℝ) →L[ℝ] ℝ and Fin n → ℝ.
+
+
+
+Yes — this is a really nice piece of linear algebra that mathlib formalises.
+
+The spaces involved
+- Fin n → ℝ is the standard n-dimensional real vector space, i.e. \mathbb{R^{\mathnormal{n}}}.
+- (Fin n → ℝ) →L[ℝ] ℝ is the space of continuous linear maps from \mathbb{R^{\mathnormal{n}}} to \mathbb{R}. In finite dimensions, every linear map is continuous, so this is just the dual space (\mathbb{R^{\mathnormal{n}}})^*.
+
+The equivalence
+There is a canonical linear isometry equivalence
+(\mathbb{R^{\mathnormal{n}}})^*\; \; \cong \; \; \mathbb{R^{\mathnormal{n}}}
+given by the Riesz representation theorem in finite-dimensional Euclidean spaces:
+- For each functional f:\mathbb{R^{\mathnormal{n}}}\rightarrow \mathbb{R}, there exists a unique vector v\in \mathbb{R^{\mathnormal{n}}} such that
+f(w)=\langle v,w\rangle - for all w\in \mathbb{R^{\mathnormal{n}}}.
+- The correspondence f\mapsto v is linear and norm-preserving (an isometry).
+In Lean/mathlib this is packaged as a LinearIsometryEquiv called something like:ContinuousLinearMap.toEuclideanDual (Fin n → ℝ)
+This gives you an equivalence((Fin n → ℝ) →L[ℝ] ℝ) ≃ₗᵢ[ℝ] (Fin n → ℝ)
+How it works concretely- If you take a functional x : (Fin n → ℝ) →L[ℝ] ℝ, you can recover its representing vector by evaluating it on the standard basis vectors:
+v i := x (Pi.single i 1)
+- This is exactly the coordinate vector of x.
+- Conversely, given a vector v : Fin n → ℝ, you can build the functional
+f w := ∑ i, v i * w i
+- which is linear and continuous.
+These two constructions are inverses, and they preserve norms.Why it mattersThis equivalence is what lets you transport the inner product structure from Fin n → ℝ onto its dual (Fin n → ℝ) →L[ℝ] ℝ. Once you do that, all the axioms (norm_sq_eq_re_inner, conj_inner_symm, etc.) become immediate consequences of the corresponding facts in Fin n → ℝ.So in short:- (Fin n → ℝ) →L[ℝ] ℝ is the dual space.
+- Fin n → ℝ is the primal space.
+- The Riesz representation theorem gives a canonical linear isometry equivalence between them, implemented in mathlib as ContinuousLinearMap.toEuclideanDual.
+Would you like me to show you the exact Lean definition of ContinuousLinearMap.toEuclideanDual so you can see how it’s constructed?
+
+-----------------
+
+
 
 
