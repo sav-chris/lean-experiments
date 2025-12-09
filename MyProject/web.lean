@@ -2408,3 +2408,662 @@ lemma expand_squared_term_nd {n : ℕ}
 }
 
 --------------------------------------------------------------------------------
+
+
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+import Mathlib.Analysis.InnerProductSpace.Basic
+import Mathlib.Analysis.InnerProductSpace.PiL2
+import Mathlib.Data.Finset.Basic
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.Gradient.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
+
+import Mathlib.Analysis.Normed.Operator.LinearIsometry
+
+open Set Real Filter Topology
+open MeasureTheory
+open scoped InnerProductSpace
+open scoped BigOperators
+
+
+def hypercube {n : ℕ } (w l : EuclideanSpace ℝ (Fin n)) : Set (EuclideanSpace ℝ (Fin n)) :=
+    {x | ∀ i, w i < x i ∧ x i < l i}
+
+
+
+noncomputable def inner_prod_2ab_term_euclidean
+    {n : ℕ}
+    (ρ : ℝ)
+    (u : EuclideanSpace ℝ (Fin n) )
+    (B : EuclideanSpace ℝ (Fin n) → ℝ)
+    (x : EuclideanSpace ℝ (Fin n))
+:=
+    (ρ • ∑ i, (u i) • (gradient B x i) )
+
+
+lemma f_differentiable_within_nd_euclidean {n : ℕ }
+  (I : EuclideanSpace ℝ (Fin n) → ℝ)
+  (lower upper : EuclideanSpace ℝ (Fin n))
+  (Ω : Set (EuclideanSpace ℝ (Fin n)) := (hypercube lower upper))
+  (hI : DifferentiableOn ℝ I Ω)
+  (x :  EuclideanSpace ℝ (Fin n))
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ I x) Ω x := hI x hx
+
+
+lemma scalar_mul_differentiable_within_nd_euclidean {n : ℕ }
+  (B : EuclideanSpace ℝ (Fin n) → ℝ)
+  (lower upper : EuclideanSpace ℝ (Fin n))
+  (Ω : Set (EuclideanSpace ℝ (Fin n)) := (hypercube lower upper))
+  (ρ : ℝ)
+  (x : EuclideanSpace ℝ (Fin n))
+  (hB : DifferentiableOn ℝ B Ω)
+  (hx : x ∈ Ω)
+: DifferentiableWithinAt ℝ (λ x ↦ ρ • B x) Ω x  := DifferentiableWithinAt.const_smul (hB x hx) ρ
+
+
+lemma grad_const_mul
+    {n : ℕ}
+    (B : EuclideanSpace ℝ (Fin n) → ℝ)
+    (ρ : ℝ)
+    (a : EuclideanSpace ℝ (Fin n))
+    (hB :  DifferentiableAt ℝ B a)
+:
+    gradient (fun x => ρ • B x) a = ρ • (gradient B a)
+:= by
+{
+    simp only [gradient]
+
+    let f := λ x ↦ (B x)
+    have hf :  DifferentiableAt ℝ f a := by
+    {
+        unfold f
+        fun_prop
+    }
+
+    change (InnerProductSpace.toDual ℝ (EuclideanSpace ℝ (Fin n))).symm (fderiv ℝ (fun x => ρ • (f x)) a) =
+  ρ • (InnerProductSpace.toDual ℝ (EuclideanSpace ℝ (Fin n))).symm (fderiv ℝ f a)
+
+    have hhf : (fderiv ℝ (fun x => ρ • (f x)) a) = ρ • (fderiv ℝ f a) := by
+    {
+        rw [← (fderiv_const_smul hf ρ)]
+        rfl
+    }
+
+    simp only [hhf]
+    simp_all only [smul_eq_mul, map_smul, f]
+}
+
+lemma grad_f_sub_g
+    {n : ℕ}
+    (f g : EuclideanSpace ℝ (Fin n) → ℝ)
+    (a : EuclideanSpace ℝ (Fin n))
+    (hf :  DifferentiableAt ℝ f a)
+    (hg :  DifferentiableAt ℝ g a)
+:
+    gradient (f - g) a = gradient f a - gradient g a
+:= by
+{
+    simp only [gradient]
+    rw [fderiv_sub hf hg]
+    simp_all only [map_sub]
+}
+
+lemma expand_squared_term_nd {n : ℕ}
+    (I B : EuclideanSpace ℝ (Fin n) → ℝ)
+    (lower upper : EuclideanSpace ℝ (Fin n))
+    (Ω : Set (EuclideanSpace ℝ (Fin n)) := (hypercube lower upper))
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, ‖((gradient I x) - ρ • (gradient B x ) )‖^2 =
+    ∫ x in Ω, ‖(gradient I x)‖^2 - 2 • ρ • (∑ i, (gradient I x i) * (gradient B x i)) + (ρ^2) • ‖(gradient B x)‖^2
+
+:= by
+{
+
+    let f := λ x ↦ (I x)
+    let g := λ x ↦ ρ • B x
+    let gg := λ x ↦ ρ • (gradient B x)
+
+    apply integral_congr_ae
+
+    have h_deriv_eq
+    :
+        ∀ᵐ x ∂(volume.restrict Ω),
+        gradient (λ x ↦ I x - ρ • B x) x = gradient I x - ρ • gradient B x
+    := by
+    {
+        filter_upwards [self_mem_ae_restrict hM] with a hΩ
+
+        have hn : Ω ∈ 𝓝 a := hΩ_open.mem_nhds hΩ
+        have hf : DifferentiableWithinAt ℝ f Ω a := f_differentiable_within_nd_euclidean I lower upper Ω hI a hΩ
+        have hg : DifferentiableWithinAt ℝ g Ω a := scalar_mul_differentiable_within_nd_euclidean B lower upper Ω ρ a hB hΩ
+        have hf' : DifferentiableAt ℝ f a := hf.differentiableAt hn
+        have hg' : DifferentiableAt ℝ g a := hg.differentiableAt hn
+        have hB' : DifferentiableAt ℝ B a := (hB a hΩ).differentiableAt hn
+
+        change gradient (λ x => f x - g x) a = (λ x ↦ (gradient f x ) - ρ • (gradient B x) ) a
+
+        change gradient (λ x => f x - g x) a = (λ x ↦ (gradient f x ) - (gg x) ) a
+
+        have ρBh : (gradient g a) = gg a := by
+        {
+            unfold gg
+            unfold g
+            simp_all only [smul_eq_mul, f, g]
+            simp only [← smul_eq_mul]
+            simp only [(grad_const_mul B ρ a hB')]
+        }
+        simp only [←ρBh]
+
+        change gradient (f - g ) a = (gradient f a) - (gradient g a)
+
+        apply (grad_f_sub_g f g a hf' hg')
+    }
+
+    filter_upwards [h_deriv_eq] with x hx
+    ring_nf
+    simp only [smul_eq_mul]
+    ring_nf
+
+
+    let u := gradient I x
+    let v := ρ • gradient B x
+
+    have v_sq_h : ρ ^ 2 • ‖(gradient B x)‖ ^ 2 = ‖v‖ ^ 2 := by
+    {
+        unfold v
+        rw [norm_smul]
+        simp_all only [smul_eq_mul, ae_restrict_eq, Real.norm_eq_abs]
+        rw [mul_pow]
+        simp_all only [sq_abs]
+    }
+
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (ρ • ∑ i, (gradient I x i) • (gradient B x i)) * 2 + ρ ^ 2 • ‖(gradient B x)‖ ^ 2
+    rw [v_sq_h]
+
+    have h_ρ_factor
+        (ρ : ℝ)
+        (u : EuclideanSpace ℝ (Fin n))
+        (B : EuclideanSpace ℝ (Fin n) → ℝ)
+        (x : EuclideanSpace ℝ (Fin n))
+    :
+        (inner_prod_2ab_term_euclidean ρ u B x) = (∑ i, (u i) • ρ • (gradient B x i))
+    := by
+    {
+        unfold inner_prod_2ab_term_euclidean
+
+        rw [Finset.smul_sum]
+
+        change ∑ (x_1 : Fin n), ρ • (u x_1) • ((gradient B x) x_1) = ∑ x_1, (u x_1) • ρ • ((gradient B x) x_1)
+
+        let c (x_1 : Fin n ) := ((gradient B x) x_1 )
+
+        change ∑ x_1, ρ • (u x_1) • (c x_1) = ∑ x_1, (u x_1) • ρ • (c x_1)
+
+        let d (x_1 : Fin n ) := (u x_1)
+
+        change ∑ x_1, ρ • (d x_1) • (c x_1) = ∑ x_1, (d x_1) • ρ • (c x_1)
+
+        rw [Finset.sum_congr]
+        rfl
+
+        intro x h
+
+        let d_ : ℝ := (d x)
+        let c_ : ℝ := (c x)
+
+        change ρ • d_ • c_ = d_ • ρ • c_
+        rw [smul_comm]
+    }
+
+
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (ρ • ∑ i, (u i) • (gradient B x i)) • 2 + ‖v‖ ^ 2
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (inner_prod_2ab_term_euclidean ρ u B x) • 2 + ‖v‖ ^ 2
+
+    rw [(h_ρ_factor ρ u B x)]
+
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (∑ i, (u i) • (v i)) • 2 + ‖v‖ ^ 2
+
+    have h_inner_prod_space : InnerProductSpace ℝ (EuclideanSpace ℝ (Fin n) ) := by
+    {
+        refine
+        {
+            inner               := λ x y ↦ (∑ i, (x i) • (y i))
+            norm_sq_eq_re_inner := by
+            {
+                intro x
+                simp_all only
+                [
+                    smul_eq_mul,
+                    ae_restrict_eq,
+                    map_sum,
+                    RCLike.mul_re,
+                    RCLike.re_to_real,
+                    RCLike.im_to_real,
+                    mul_zero,
+                    sub_zero,
+                    v
+                ]
+                rw [@PiLp.norm_sq_eq_of_L2]
+                change  ∑ i, ‖x.ofLp i‖ ^ 2 = ∑ i, x.ofLp i * x.ofLp i
+                apply Finset.sum_congr
+                rfl
+                intro i hi
+                simp only [norm_eq_abs, sq_abs]
+                simp_all only [Finset.mem_univ]
+                set a := x.ofLp i with ha
+                rw [pow_two]
+            }
+            conj_inner_symm     := by
+            {
+                intro x y
+                simp only [starRingEnd_apply]
+
+                have hstar : ∀ r : ℝ, star r = r := by intro r; simp only [star_trivial]
+
+                rw [hstar]
+                simp [mul_comm]
+            }
+            add_left            := by
+            {
+                intro x y z
+                simp only [smul_eq_mul]
+
+                simp_all only [smul_eq_mul, ae_restrict_eq, v]
+
+                change ∑ x_1, ((x x_1) + (y x_1)) * (z x_1) = ∑ x_1, (x x_1) * (z x_1) + ∑ x_1, (y x_1) * (z x_1)
+
+                have h_mul :
+                  ∀ i,
+                    ((x i) + (y i)) * (z i)
+                      =
+                    (x i) * (z i)
+                      +
+                    (y i) * (z i)
+                := by
+                {
+                    intro i
+                    ring
+                }
+
+                simp [h_mul, Finset.sum_add_distrib]
+            }
+            smul_left           := by
+            {
+                intro x y r
+                have hstar : (starRingEnd ℝ) r = r := by simp only [conj_trivial]
+
+                -- Rewrite `(r • x) v = r * x v`
+                simp only [smul_eq_mul, hstar, Finset.mul_sum]
+                trace_state
+                --simp only [mul_assoc]
+                sorry
+            }
+
+        }
+    }
+
+
+    change ‖u - v‖ ^ 2 = ‖u‖ ^ 2 - (∑ i, (u i) • (v i)) • 2 + ‖v‖ ^ 2
+
+    trace_state
+
+    rw [(norm_sub_sq_real) ]
+
+    trace_state
+
+    change ‖u‖ ^ 2 - 2 * ⟪u, v⟫_ℝ + ‖v‖ ^ 2 = ‖u‖ ^ 2 - (∑ i, (u i) • (v i)) • 2 + ‖v‖ ^ 2
+
+    simp only [smul_eq_mul, add_left_inj, sub_right_inj]
+
+
+
+    rw [←mul_right_inj' (by norm_num : (1/2 : ℝ) ≠ 0)]
+    ring_nf
+
+    unfold inner
+    trace_state
+
+
+
+}
+
+--------------------------------------------------------------------------------
+
+
+import Mathlib.MeasureTheory.Measure.MeasureSpace
+import Mathlib.Analysis.InnerProductSpace.Basic
+import Mathlib.Analysis.InnerProductSpace.PiL2
+import Mathlib.Data.Finset.Basic
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.Gradient.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
+
+import Mathlib.Analysis.Normed.Operator.LinearIsometry
+
+open Set Real Filter Topology
+open MeasureTheory
+open scoped InnerProductSpace
+open scoped BigOperators
+
+
+def hypercube {n : ℕ } (w l : EuclideanSpace ℝ (Fin n)) : Set (EuclideanSpace ℝ (Fin n)) :=
+    {x | ∀ i, w i < x i ∧ x i < l i}
+
+
+
+noncomputable def inner_prod_2ab_term_euclidean
+    {n : ℕ}
+    (ρ : ℝ)
+    (u : EuclideanSpace ℝ (Fin n) )
+    (B : EuclideanSpace ℝ (Fin n) → ℝ)
+    (x : EuclideanSpace ℝ (Fin n))
+:=
+    (ρ • ∑ i, (u i) • (gradient B x i) )
+
+
+lemma f_differentiable_within_nd_euclidean {n : ℕ }
+  (I : EuclideanSpace ℝ (Fin n) → ℝ)
+  (lower upper : EuclideanSpace ℝ (Fin n))
+  (Ω : Set (EuclideanSpace ℝ (Fin n)) := (hypercube lower upper))
+  (hI : DifferentiableOn ℝ I Ω)
+  (x :  EuclideanSpace ℝ (Fin n))
+  (hx : x ∈ Ω)
+  : DifferentiableWithinAt ℝ (λ x ↦ I x) Ω x := hI x hx
+
+
+lemma scalar_mul_differentiable_within_nd_euclidean {n : ℕ }
+  (B : EuclideanSpace ℝ (Fin n) → ℝ)
+  (lower upper : EuclideanSpace ℝ (Fin n))
+  (Ω : Set (EuclideanSpace ℝ (Fin n)) := (hypercube lower upper))
+  (ρ : ℝ)
+  (x : EuclideanSpace ℝ (Fin n))
+  (hB : DifferentiableOn ℝ B Ω)
+  (hx : x ∈ Ω)
+: DifferentiableWithinAt ℝ (λ x ↦ ρ • B x) Ω x  := DifferentiableWithinAt.const_smul (hB x hx) ρ
+
+
+lemma grad_const_mul
+    {n : ℕ}
+    (B : EuclideanSpace ℝ (Fin n) → ℝ)
+    (ρ : ℝ)
+    (a : EuclideanSpace ℝ (Fin n))
+    (hB :  DifferentiableAt ℝ B a)
+:
+    gradient (fun x => ρ • B x) a = ρ • (gradient B a)
+:= by
+{
+    simp only [gradient]
+
+    let f := λ x ↦ (B x)
+    have hf :  DifferentiableAt ℝ f a := by
+    {
+        unfold f
+        fun_prop
+    }
+
+    change (InnerProductSpace.toDual ℝ (EuclideanSpace ℝ (Fin n))).symm (fderiv ℝ (fun x => ρ • (f x)) a) =
+  ρ • (InnerProductSpace.toDual ℝ (EuclideanSpace ℝ (Fin n))).symm (fderiv ℝ f a)
+
+    have hhf : (fderiv ℝ (fun x => ρ • (f x)) a) = ρ • (fderiv ℝ f a) := by
+    {
+        rw [← (fderiv_const_smul hf ρ)]
+        rfl
+    }
+
+    simp only [hhf]
+    simp_all only [smul_eq_mul, map_smul, f]
+}
+
+lemma grad_f_sub_g
+    {n : ℕ}
+    (f g : EuclideanSpace ℝ (Fin n) → ℝ)
+    (a : EuclideanSpace ℝ (Fin n))
+    (hf :  DifferentiableAt ℝ f a)
+    (hg :  DifferentiableAt ℝ g a)
+:
+    gradient (f - g) a = gradient f a - gradient g a
+:= by
+{
+    simp only [gradient]
+    rw [fderiv_sub hf hg]
+    simp_all only [map_sub]
+}
+
+lemma expand_squared_term_nd {n : ℕ}
+    (I B : EuclideanSpace ℝ (Fin n) → ℝ)
+    (lower upper : EuclideanSpace ℝ (Fin n))
+    (Ω : Set (EuclideanSpace ℝ (Fin n)) := (hypercube lower upper))
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (ρ : ℝ)
+    (hΩ_open : IsOpen Ω)
+:
+    ∫ x in Ω, ‖((gradient I x) - ρ • (gradient B x ) )‖^2 =
+    ∫ x in Ω, ‖(gradient I x)‖^2 - 2 • ρ • (∑ i, (gradient I x i) * (gradient B x i)) + (ρ^2) • ‖(gradient B x)‖^2
+
+:= by
+{
+
+    let f := λ x ↦ (I x)
+    let g := λ x ↦ ρ • B x
+    let gg := λ x ↦ ρ • (gradient B x)
+
+    apply integral_congr_ae
+
+    have h_deriv_eq
+    :
+        ∀ᵐ x ∂(volume.restrict Ω),
+        gradient (λ x ↦ I x - ρ • B x) x = gradient I x - ρ • gradient B x
+    := by
+    {
+        filter_upwards [self_mem_ae_restrict hM] with a hΩ
+
+        have hn : Ω ∈ 𝓝 a := hΩ_open.mem_nhds hΩ
+        have hf : DifferentiableWithinAt ℝ f Ω a := f_differentiable_within_nd_euclidean I lower upper Ω hI a hΩ
+        have hg : DifferentiableWithinAt ℝ g Ω a := scalar_mul_differentiable_within_nd_euclidean B lower upper Ω ρ a hB hΩ
+        have hf' : DifferentiableAt ℝ f a := hf.differentiableAt hn
+        have hg' : DifferentiableAt ℝ g a := hg.differentiableAt hn
+        have hB' : DifferentiableAt ℝ B a := (hB a hΩ).differentiableAt hn
+
+        change gradient (λ x => f x - g x) a = (λ x ↦ (gradient f x ) - ρ • (gradient B x) ) a
+
+        change gradient (λ x => f x - g x) a = (λ x ↦ (gradient f x ) - (gg x) ) a
+
+        have ρBh : (gradient g a) = gg a := by
+        {
+            unfold gg
+            unfold g
+            simp_all only [smul_eq_mul, f, g]
+            simp only [← smul_eq_mul]
+            simp only [(grad_const_mul B ρ a hB')]
+        }
+        simp only [←ρBh]
+
+        change gradient (f - g ) a = (gradient f a) - (gradient g a)
+
+        apply (grad_f_sub_g f g a hf' hg')
+    }
+
+    filter_upwards [h_deriv_eq] with x hx
+    ring_nf
+    simp only [smul_eq_mul]
+    ring_nf
+
+
+    let u := gradient I x
+    let v := ρ • gradient B x
+
+    have v_sq_h : ρ ^ 2 • ‖(gradient B x)‖ ^ 2 = ‖v‖ ^ 2 := by
+    {
+        unfold v
+        rw [norm_smul]
+        simp_all only [smul_eq_mul, ae_restrict_eq, Real.norm_eq_abs]
+        rw [mul_pow]
+        simp_all only [sq_abs]
+    }
+
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (ρ • ∑ i, (gradient I x i) • (gradient B x i)) * 2 + ρ ^ 2 • ‖(gradient B x)‖ ^ 2
+    rw [v_sq_h]
+
+    have h_ρ_factor
+        (ρ : ℝ)
+        (u : EuclideanSpace ℝ (Fin n))
+        (B : EuclideanSpace ℝ (Fin n) → ℝ)
+        (x : EuclideanSpace ℝ (Fin n))
+    :
+        (inner_prod_2ab_term_euclidean ρ u B x) = (∑ i, (u i) • ρ • (gradient B x i))
+    := by
+    {
+        unfold inner_prod_2ab_term_euclidean
+
+        rw [Finset.smul_sum]
+
+        change ∑ (x_1 : Fin n), ρ • (u x_1) • ((gradient B x) x_1) = ∑ x_1, (u x_1) • ρ • ((gradient B x) x_1)
+
+        let c (x_1 : Fin n ) := ((gradient B x) x_1 )
+
+        change ∑ x_1, ρ • (u x_1) • (c x_1) = ∑ x_1, (u x_1) • ρ • (c x_1)
+
+        let d (x_1 : Fin n ) := (u x_1)
+
+        change ∑ x_1, ρ • (d x_1) • (c x_1) = ∑ x_1, (d x_1) • ρ • (c x_1)
+
+        rw [Finset.sum_congr]
+        rfl
+
+        intro x h
+
+        let d_ : ℝ := (d x)
+        let c_ : ℝ := (c x)
+
+        change ρ • d_ • c_ = d_ • ρ • c_
+        rw [smul_comm]
+    }
+
+
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (ρ • ∑ i, (u i) • (gradient B x i)) • 2 + ‖v‖ ^ 2
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (inner_prod_2ab_term_euclidean ρ u B x) • 2 + ‖v‖ ^ 2
+
+    rw [(h_ρ_factor ρ u B x)]
+
+    change ‖(u - v)‖ ^ 2 = ‖u‖ ^ 2 - (∑ i, (u i) • (v i)) • 2 + ‖v‖ ^ 2
+
+    have h_inner_prod_space : InnerProductSpace ℝ (EuclideanSpace ℝ (Fin n) ) := by
+    {
+        refine
+        {
+            inner               := λ x y ↦ (∑ i, (x i) • (y i))
+            norm_sq_eq_re_inner := by
+            {
+                intro x
+                simp_all only
+                [
+                    smul_eq_mul,
+                    ae_restrict_eq,
+                    map_sum,
+                    RCLike.mul_re,
+                    RCLike.re_to_real,
+                    RCLike.im_to_real,
+                    mul_zero,
+                    sub_zero,
+                    v
+                ]
+                rw [@PiLp.norm_sq_eq_of_L2]
+                change  ∑ i, ‖x.ofLp i‖ ^ 2 = ∑ i, x.ofLp i * x.ofLp i
+                apply Finset.sum_congr
+                rfl
+                intro i hi
+                simp only [norm_eq_abs, sq_abs]
+                simp_all only [Finset.mem_univ]
+                set a := x.ofLp i with ha
+                rw [pow_two]
+            }
+            conj_inner_symm     := by
+            {
+                intro x y
+                simp only [starRingEnd_apply]
+
+                have hstar : ∀ r : ℝ, star r = r := by intro r; simp only [star_trivial]
+
+                rw [hstar]
+                simp [mul_comm]
+            }
+            add_left            := by
+            {
+                intro x y z
+                simp only [smul_eq_mul]
+
+                simp_all only [smul_eq_mul, ae_restrict_eq, v]
+
+                change ∑ x_1, ((x x_1) + (y x_1)) * (z x_1) = ∑ x_1, (x x_1) * (z x_1) + ∑ x_1, (y x_1) * (z x_1)
+
+                have h_mul :
+                  ∀ i,
+                    ((x i) + (y i)) * (z i)
+                      =
+                    (x i) * (z i)
+                      +
+                    (y i) * (z i)
+                := by
+                {
+                    intro i
+                    ring
+                }
+
+                simp [h_mul, Finset.sum_add_distrib]
+            }
+            smul_left           := by
+            {
+                trace_state
+                intro x y r
+                have hstar : (starRingEnd ℝ) r = r := by simp only [conj_trivial]
+
+                -- Rewrite `(r • x) v = r * x v`
+                simp only [smul_eq_mul, hstar, Finset.mul_sum]
+                trace_state
+                simp only [PiLp.smul_apply, smul_eq_mul]
+                apply Finset.sum_congr
+                rfl
+                intro i hi
+                rw [mul_assoc]
+            }
+
+        }
+    }
+
+
+    change ‖u - v‖ ^ 2 = ‖u‖ ^ 2 - (∑ i, (u i) • (v i)) • 2 + ‖v‖ ^ 2
+
+    trace_state
+
+    rw [(norm_sub_sq_real) ]
+
+    trace_state
+
+    change ‖u‖ ^ 2 - 2 * ⟪u, v⟫_ℝ + ‖v‖ ^ 2 = ‖u‖ ^ 2 - (∑ i, (u i) • (v i)) • 2 + ‖v‖ ^ 2
+
+    simp only [smul_eq_mul, add_left_inj, sub_right_inj]
+
+
+
+    rw [←mul_right_inj' (by norm_num : (1/2 : ℝ) ≠ 0)]
+    ring_nf
+
+    unfold inner
+    trace_state
+
+
+
+}
+
+
+-------------------------------------------------------------------------------
