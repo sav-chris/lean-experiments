@@ -4767,3 +4767,64 @@ theorem edginess_polynomial_eq_1
 
 
 ---------------------------------------------------------------------------
+
+
+theorem edginess_polynomial_eq_1
+    {n : ℕ }
+    (I B : EuclideanSpace ℝ (Fin n) → ℝ)
+    (lower upper : EuclideanSpace ℝ (Fin n))
+    (Ω : Set (EuclideanSpace ℝ (Fin n)) := (hypercube lower upper))
+    (hM: MeasurableSet Ω)
+    (hI : DifferentiableOn ℝ I Ω)
+    (hB : DifferentiableOn ℝ B Ω)
+    (hΩ_open : IsOpen Ω)
+    (h_edgable : (image_and_background_are_edgable I B lower upper Ω ) )
+:
+    ∀ ρ : ℝ, edginess I B lower upper Ω ρ = edginess_polynomial I B lower upper Ω ρ
+:= by
+{
+    unfold edginess edginess_polynomial
+    intro ρ
+    unfold quadratic
+    unfold a_coef b_coef c_coef
+    ring_nf
+
+    rw [(deriv_distributes_over_sub_within_integral I B lower upper Ω hM hI hB ρ hΩ_open )]
+    rw [(expand_squared_term I B lower upper Ω hM hI hB ρ hΩ_open )]
+
+    ring_nf
+    simp_all only [smul_eq_mul ]
+
+
+    have rest_lemma :
+        ∫ x in Ω, ⟪ ∇ I x, ∇ I x ⟫_ℝ - ρ * ⟪ ∇ I x, ∇ B x ⟫_ℝ * 2 + (ρ^2) * ⟪ ∇ B x, ∇ B x ⟫_ℝ = (∫ x in Ω, ⟪ ∇ B x, ∇ B x ⟫_ℝ) * ρ ^ 2 + -(ρ * (2 * ∫ x in Ω, ⟪ ∇ I x, ∇ B x ⟫_ℝ)) + (∫ x in Ω, ⟪ ∇ I x, ∇ I x ⟫_ℝ)
+    := by
+    {
+        change ∫ x in Ω, ( (I_Squared_Term I x) - (IB_Term I B x ρ ) + (B_Squared_Term B x ρ) ) =  (Int_B_Squared_Term B ρ lower upper Ω) - (Int_IB_Term I B ρ lower upper Ω) + (Int_I_Squared_Term I lower upper Ω)
+        rw [ (integral_distributes_over_addition I B lower upper Ω ρ h_edgable) ]
+    }
+
+    change ∫ x in Ω, ‖∇ I x‖ ^ 2 - ρ * ⟪∇ I x, ∇ B x⟫_ℝ * 2 + ρ ^ 2 * ‖∇ B x‖ ^ 2 = (-((ρ * ∫ x in Ω, ⟪∇ I x, ∇ B x⟫_ℝ) * 2) + ρ ^ 2 * ∫ x in Ω, ⟪∇ B x, ∇ B x⟫_ℝ) + ∫ x in Ω, ⟪∇ I x, ∇ I x⟫_ℝ
+    change ∫ x in Ω, ( (IB_Squared_Term_Norm I x) - ρ * (IB_Inner I B x) * 2 + ρ ^ 2 * (IB_Squared_Term_Norm B x) ) = (-((ρ * ∫ x in Ω, (IB_Inner I B x)) * 2) + ρ ^ 2 * ∫ x in Ω, (IB_Inner B B x)) + ∫ x in Ω, (IB_Inner I I x)
+
+    trace_state
+
+    simp only [← inner_prod_eq_norm_lemma]
+
+    change ∫ x in Ω, IB_Inner I I x - ρ * IB_Inner I B x * 2 + ρ ^ 2 * IB_Inner B B x = (-((ρ * ∫ x in Ω, IB_Inner I B x) * 2) + ρ ^ 2 * ∫ x in Ω, IB_Inner B B x) + ∫ x in Ω, IB_Inner I I x
+
+    -- ∫ x in Ω, ( (I_Squared_Term I x) - (IB_Term I B x ρ ) + (B_Squared_Term B x ρ) ) =  (Int_B_Squared_Term B ρ lower upper Ω) - (Int_IB_Term I B ρ lower upper Ω) + (Int_I_Squared_Term I lower upper Ω)
+    trace_state
+    /-
+    change ∫ x in Ω, (IB_Squared_Term_Norm I x) - ρ * (IB_Inner I B x) * 2 + ρ ^ 2 * (IB_Squared_Term_Norm B x) = (-((ρ * ∫ x in Ω, (IB_Inner I B x) * 2) + ρ ^ 2 * ∫ x in Ω, (IB_Inner B B x) ) + ∫ x in Ω, (IB_Inner I I x)
+    change ∫ (x : ℝ) in Ω, deriv I x ^ 2 - ρ * (deriv I x * deriv B x) * 2 + (ρ * deriv B x) ^ 2 = (∫ (x : ℝ) in Ω, deriv B x ^ 2) * ρ ^ 2 - (ρ * ∫ (x : ℝ) in Ω, deriv I x * deriv B x) * 2 + ∫ (x : ℝ) in Ω, deriv I x ^ 2
+    change ∫ (x : ℝ) in Ω, (I_Squared_Term I x) - (IB_Term I B x ρ) + (B_Squared_Term B x ρ) = (Int_B_Squared_Term B ρ lower upper Ω) - (ρ * ∫ (x : ℝ) in Ω, deriv I x * deriv B x) * 2 + (Int_I_Squared_Term I lower upper Ω)
+
+    change ∫ (x : ℝ) in Ω, (I_Squared_Term I x) - (IB_Term I B x ρ) + (B_Squared_Term B x ρ) = (Int_B_Squared_Term B ρ lower upper Ω) - (Int_IB_Term_2 I B ρ lower upper Ω) + (Int_I_Squared_Term I lower upper Ω)
+    -/
+    simp only [(Int_IB_Term_sub I B lower upper Ω ρ)]
+
+    apply rest_lemma
+}
+
+---------------------------------------------------------------------------------
