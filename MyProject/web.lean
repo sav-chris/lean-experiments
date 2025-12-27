@@ -4828,3 +4828,29 @@ theorem edginess_polynomial_eq_1
 }
 
 ---------------------------------------------------------------------------------
+
+
+--notation "∇" => gradient
+
+
+-- Hypercube region
+def G {n : ℕ}
+    (τ : ℝ)
+:
+    Set (EuclideanSpace ℝ (Fin n))
+:=
+    { x | ∀ i, |x i| ≤ τ }
+
+
+
+-- hypercube_centered
+def G {n:ℕ}
+    (x : EuclideanSpace ℝ (Fin n)) --centre
+    (τ : ℝ) --radius
+:
+    Set (EuclideanSpace ℝ (Fin n))
+:=
+    { p | ∀ i, |p i - x i| ≤ τ }
+
+
+-------------------------------------------------------------------------
